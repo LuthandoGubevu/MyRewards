@@ -1,8 +1,6 @@
 
 import Link from 'next/link';
 import Image from 'next/image'; // Import Image
-import { LogIn, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export function Header() {
   return (
@@ -22,21 +20,9 @@ export function Header() {
           />
           <h1 className="text-sm font-bold font-national tracking-tight text-kfc-header-brand-red">KFC Rewards Tracker</h1>
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" className="text-black hover:bg-gray-100" asChild>
-            <Link href="/login">
-              <LogIn className="mr-2 h-4 w-4" />
-              Login
-            </Link>
-          </Button>
-          <Button variant="ghost" className="text-black hover:bg-gray-100" asChild>
-            <Link href="/signup">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Sign Up
-            </Link>
-          </Button>
-        </nav>
+        {/* Login and Sign Up buttons removed */}
       </div>
     </header>
   );
 }
+
