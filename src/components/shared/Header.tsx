@@ -12,17 +12,22 @@ export function Header() {
 
   return (
     <header className="bg-black">
-      <div className="container mx-auto flex h-28 items-center justify-between px-4 md:px-6"> {/* Changed to justify-between */}
-        <Link href="/" className="flex items-center">
-          <Image
-            src="/images/KFC-Logo.png"
-            alt="KFC Logo"
-            width={100}
-            height={100}
-            priority={false}
-          />
-        </Link>
+      {/* Added 'relative' to the container and changed 'justify-between' to 'justify-end' */}
+      <div className="container mx-auto flex h-28 items-center justify-end px-4 md:px-6 relative">
+        {/* Centered Logo using absolute positioning */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/images/KFC-Logo.png"
+              alt="KFC Logo"
+              width={100}
+              height={100}
+              priority={false}
+            />
+          </Link>
+        </div>
         
+        {/* User Info - will be pushed to the right by 'justify-end' on the parent */}
         {user && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-300 hidden sm:inline">{user.email}</span>
