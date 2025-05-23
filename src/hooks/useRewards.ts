@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useMemo } from 'react';
@@ -7,10 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const initialMilestones: Milestone[] = [
-  { id: 'm1', points: 1, reward: 'Free Drink', description: 'Enjoy a refreshing beverage on us!', icon: Star },
-  { id: 'm2', points: 3, reward: 'Free Side Dish', description: 'Choose your favorite side, like fries or coleslaw.', icon: Gift },
-  { id: 'm3', points: 7, reward: 'Free Chicken Piece', description: 'Savor a piece of our signature Original Recipe chicken.', icon: Award },
-  { id: 'm4', points: 10, reward: 'Free Bucket Meal', description: 'Get a whole meal deal, perfect for sharing (or not!).', icon: Trophy },
+  { id: 'm1', points: 1, reward: '1 FREE Piece of chicken', description: 'Enjoy a delicious piece of our famous chicken.', icon: Star },
+  { id: 'm2', points: 3, reward: 'FREE Lip balm & Cap Dish', description: 'Some cool KFC swag to show your loyalty.', icon: Gift },
+  { id: 'm3', points: 7, reward: 'Free Towel', description: 'A KFC branded towel, perfect for picnics or the beach.', icon: Award },
+  { id: 'm4', points: 10, reward: 'Free Headphones', description: 'Listen to your tunes with these KFC headphones.', icon: Trophy },
 ];
 
 export function useRewards() {
