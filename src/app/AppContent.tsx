@@ -45,7 +45,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
   // Render normally if user is logged in, or if it's a public path
   return (
     <>
-      {!isPublicPath && <Header />} {/* Only show header on non-public (authenticated) pages */}
+      <Header /> {/* Header is now rendered on all pages */}
       <main className="flex-grow container mx-auto px-4 py-8 md:px-6">
         {children}
       </main>
