@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { QrScanner as YudielQrScanner } from '@yudiel/react-qr-scanner';
+import { Scanner as YudielQrScanner } from '@yudiel/react-qr-scanner';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, XCircle, CameraOff } from 'lucide-react';
