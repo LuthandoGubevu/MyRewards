@@ -7,13 +7,13 @@ import { Gift, Award, Trophy, Star } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 const initialMilestones: Milestone[] = [
-  { id: 'm1', points: 1, reward: '1 FREE Piece of chicken', description: 'Enjoy a delicious piece of our famous chicken.', icon: Star },
-  { id: 'm2', points: 3, reward: 'FREE Lip Balm & Cap Dish', description: 'Some cool KFC swag to show your loyalty.', icon: Gift },
-  { id: 'm3', points: 7, reward: 'Free Towel', description: 'A KFC branded towel, perfect for picnics or the beach.', icon: Award },
-  { id: 'm4', points: 10, reward: 'Free Headphones', description: 'Listen to your tunes with these KFC headphones.', icon: Trophy },
+  { id: 'm1', points: 100, reward: '1 FREE Piece of chicken', description: 'Enjoy a delicious piece of our famous chicken.', icon: Star },
+  { id: 'm2', points: 300, reward: 'FREE Lip Balm & Cap Dish', description: 'Some cool KFC swag to show your loyalty.', icon: Gift },
+  { id: 'm3', points: 700, reward: 'Free Towel', description: 'A KFC branded towel, perfect for picnics or the beach.', icon: Award },
+  { id: 'm4', points: 1000, reward: 'Free Headphones', description: 'Listen to your tunes with these KFC headphones.', icon: Trophy },
 ];
 
-const MAX_POINTS_FOR_RESET_PROMPT = 10;
+const MAX_POINTS_FOR_RESET_PROMPT = 1000;
 
 export function useRewards() {
   const [points, setPoints] = useState(0);
@@ -35,7 +35,7 @@ export function useRewards() {
 
   const addPoint = useCallback(() => {
     setPoints(prevPoints => {
-      const newPoints = prevPoints + 1;
+      const newPoints = prevPoints + 1; // Assuming 1 point is added per scan, scale happens at milestone definition
       const newlyAchieved = milestones.find(m => m.points === newPoints && !achievedMilestoneIds.has(m.id));
       
       if (newlyAchieved) {
@@ -45,7 +45,7 @@ export function useRewards() {
           description: `You've earned: ${newlyAchieved.reward}!`,
           variant: "default",
         });
-        // Check if this is the 10-point milestone to trigger reset dialog
+        // Check if this is the MAX_POINTS_FOR_RESET_PROMPT milestone to trigger reset dialog
         if (newlyAchieved.points === MAX_POINTS_FOR_RESET_PROMPT) {
           setIsResetDialogOpen(true);
         }

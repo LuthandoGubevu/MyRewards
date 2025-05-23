@@ -64,4 +64,5 @@ export default function HomePage() {
 }
 
 // Define MAX_POINTS_FOR_RESET_PROMPT here or import from a shared constants file if preferred
-const MAX_POINTS_FOR_RESET_PROMPT = 10;
+const MAX_POINTS_FOR_RESET_PROMPT = 1000;
+
