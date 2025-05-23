@@ -90,6 +90,9 @@ body {
 }
 
 @layer utilities {
+  .font-national {
+    font-family: 'National', var(--font-geist-sans), sans-serif;
+  }
   .point-pop {
     animation: point-pop-animation 0.3s ease-out;
   }
