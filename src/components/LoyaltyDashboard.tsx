@@ -60,10 +60,10 @@ const CircularProgress = ({
 interface LoyaltyDashboardProps {
   points: number;
   milestones: Milestone[];
-  achievedMilestoneIds: Set<string>;
+  achievedMilestoneIds: Set<string>; // Prop is defined, ensure it's used or handled if not needed
 }
 
-export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: LoyaltyDashboardProps) {
+export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, milestones, achievedMilestoneIds }) => {
   const finalMilestonePoints = Math.max(...milestones.map(m => m.points), 1);
   const overallProgressPercentage = Math.min((points / finalMilestonePoints) * 100, 100);
 
@@ -93,7 +93,7 @@ export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: L
     if (points >= finalMilestonePoints) {
       // Ensure sortedMilestones is not empty before accessing its last element
       if (sortedMilestones.length > 0) {
-        nextMilestone = sortedMilestones[sortedMilestones.length - 1];
+        nextMilestone = sortedMilestones[sortedMilestones.length - 1]; // This will be the final milestone if all are achieved
       }
       pointsForNextMilestoneText = "You've unlocked all rewards!";
     }
@@ -113,7 +113,7 @@ export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: L
             pointsLabel="TOTAL POINTS"
           />
           <div className="text-center h-16 flex flex-col justify-center">
-            {nextMilestone ? (
+            {nextMilestone && points < finalMilestonePoints ? ( // Also check if points are less than final milestone to show next reward
               <>
                 <p className="text-md sm:text-lg font-medium text-white/80"> {/* Changed from text-muted-foreground */}
                   {pointsForNextMilestoneText}
@@ -121,7 +121,9 @@ export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: L
                 <p className="text-white text-lg sm:text-xl font-semibold">{nextMilestone.reward}</p> {/* Changed from text-primary */}
               </>
             ) : (
-              <p className="text-lg font-semibold text-white">No upcoming rewards. Keep collecting!</p> /* Changed from text-primary */
+              <p className="text-lg font-semibold text-white">
+                { points >= finalMilestonePoints ? "You've unlocked all rewards!" : "Set up your milestones!"}
+              </p>
             )}
           </div>
 
@@ -150,11 +152,17 @@ export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: L
           />
           <div className="flex justify-between text-xs text-white/80 font-medium"> {/* Changed from text-muted-foreground */}
             <span>Start</span>
-            <span>{finalMilestonePoints} PTS</span>
+            <span>{finalMilestonePoints > 1 ? `${finalMilestonePoints} PTS` : 'Set Milestones'}</span>
             <span>Colonel's Elite</span>
           </div>
         </CardContent>
       </Card>
     </div>
   );
-}
+};
+
+// Note: achievedMilestoneIds is passed as a prop but not directly used in this component's JSX
+// after the removal of the explicit reward list. It is used by the useRewards hook logic.
+// If it's not needed by this component's rendering logic at all, it could be removed from props here,
+// but ensure it's not expected by other parts of the system if this component is reused.
+// For now, keeping it to match the interface.
