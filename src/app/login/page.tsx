@@ -25,7 +25,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl bg-gradient-to-br from-[#e4002b] to-[#99001a] text-white rounded-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-white">Login</CardTitle>
-          <CardDescription className="text-white/80 pt-1">Access your KFC Rewards account.</CardDescription>
+          <CardDescription className="text-white/80 pt-1 font-bold">Access your KFC Rewards account.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
