@@ -94,7 +94,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Login Successful!', description: 'Welcome back!' });
     } catch (error: any) {
       console.error("Error logging in:", error);
-      toast({ variant: 'destructive', title: 'Login Failed', description: error.message });
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            description = 'Invalid email or password. Please check your credentials and try again.';
+            break;
+          case 'auth/invalid-email':
+            description = 'The email address is not valid. Please enter a valid email.';
+            break;
+          case 'auth/user-disabled':
+            description = 'This user account has been disabled.';
+            break;
+          default:
+            description = error.message; // Fallback to Firebase's generic message
+        }
+      }
+      toast({ variant: 'destructive', title: 'Login Failed', description });
     } finally {
       setLoading(false);
     }
