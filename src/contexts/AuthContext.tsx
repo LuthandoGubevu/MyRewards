@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logIn: (email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
 }
@@ -38,19 +38,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, name: string, phoneNumber?: string) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
         // Save user to Firestore
-        await setDoc(doc(db, "users", firebaseUser.uid), {
+        const userData: {
+          uid: string;
+          email: string | null;
+          name: string;
+          phoneNumber?: string;
+          createdAt: any; // serverTimestamp type
+          lastLogin: any; // serverTimestamp type
+        } = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
+          name: name,
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-        });
+        };
+        if (phoneNumber) {
+          userData.phoneNumber = phoneNumber;
+        }
+        await setDoc(doc(db, "users", firebaseUser.uid), userData);
         setUser(firebaseUser);
         router.push('/');
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
@@ -69,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       setUser(userCredential.user);
       // Optionally update lastLogin timestamp here if needed
-      // await setDoc(doc(db, "users", userCredential.user.uid), { lastLogin: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, "users", userCredential.user.uid), { lastLogin: serverTimestamp() }, { merge: true });
       router.push('/');
       toast({ title: 'Login Successful!', description: 'Welcome back!' });
     } catch (error: any) {

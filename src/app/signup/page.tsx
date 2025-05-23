@@ -14,11 +14,12 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const { signUp, loading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUp(email, password);
+    await signUp(email, password, name, phoneNumber); // Pass name and phoneNumber
   };
 
   return (
@@ -38,6 +39,7 @@ export default function SignupPage() {
                 placeholder="Colonel Sanders"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
                 className="bg-white/20 border-white/40 placeholder:text-white/70 text-white focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4002b]"
               />
             </div>
@@ -50,6 +52,17 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="bg-white/20 border-white/40 placeholder:text-white/70 text-white focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4002b]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber" className="text-white/90">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="e.g., 123-456-7890"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
                 className="bg-white/20 border-white/40 placeholder:text-white/70 text-white focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#e4002b]"
               />
             </div>
