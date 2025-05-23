@@ -17,9 +17,14 @@ export default function AppContent({ children }: { children: ReactNode }) {
   const isPublicPath = publicPaths.includes(pathname);
 
   useEffect(() => {
-    // If auth loading is complete, and there's no user, and we're not on a public path
-    if (!loading && !user && !isPublicPath) {
-      router.push('/login');
+    if (!loading) { // Only perform redirects once authentication state is resolved
+      if (user && isPublicPath) {
+        // If user is logged in and on a public path (login/signup), redirect to home/dashboard
+        router.push('/');
+      } else if (!user && !isPublicPath) {
+        // If user is not logged in and not on a public path, redirect to login
+        router.push('/login');
+      }
     }
   }, [user, loading, router, pathname, isPublicPath]);
 
@@ -42,7 +47,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
     );
   }
 
-  // Render normally if user is logged in, or if it's a public path
+  // Render normally if user is logged in, or if it's a public path (and useEffect hasn't redirected yet)
   return (
     <>
       <Header /> {/* Header is now rendered on all pages */}
