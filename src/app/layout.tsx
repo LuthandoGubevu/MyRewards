@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { Inter as FontSans } from 'next/font/google'; // Using Inter as a common sans-serif
 import './globals.css';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/shared/Header';
-import { Footer } from '@/components/shared/Footer';
+// import { Header } from '@/components/shared/Header'; // Removed Header import
+// import { Footer } from '@/components/shared/Footer'; // Removed Footer import
 import { Toaster } from "@/components/ui/toaster"; // Import Toaster
 
 const fontSans = FontSans({
@@ -26,15 +26,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased flex flex-col",
+          "min-h-screen font-sans antialiased flex flex-col bg-gradient-to-b from-black to-gray-900", // Added gradient, removed bg-background
           fontSans.variable
         )}
       >
-        <Header />
+        {/* <Header /> Removed Header */}
         <main className="flex-grow container mx-auto px-4 py-8 md:px-6">
           {children}
         </main>
-        <Footer />
+        {/* <Footer /> Removed Footer */}
         <Toaster />
       </body>
     </html>
