@@ -12,13 +12,13 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" asChild>
-            <Link href="/login" className="flex items-center gap-1">
+            <Link href="/login">
               <LogIn className="h-4 w-4" />
               Login
             </Link>
           </Button>
           <Button variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" asChild>
-            <Link href="/signup" className="flex items-center gap-1">
+            <Link href="/signup">
               <UserPlus className="h-4 w-4" />
               Sign Up
             </Link>

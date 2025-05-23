@@ -23,7 +23,8 @@ export default function ScanPage() {
           <RealTimeQrScanner onScanSuccess={addPoint} />
           <Button variant="outline" asChild className="mt-6 w-full max-w-xs">
             <Link href="/">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
             </Link>
           </Button>
         </CardContent>
