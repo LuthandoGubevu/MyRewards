@@ -5,8 +5,8 @@ import Image from 'next/image'; // Import Image
 export function Header() {
   return (
     <header className="bg-black"> {/* Changed background to black, removed text-black and shadow-md */}
-      <div className="container mx-auto flex h-28 items-center justify-between px-4 md:px-6"> {/* Adjusted height for larger logo */}
-        <Link href="/" className="flex items-center gap-2">
+      <div className="container mx-auto flex h-28 items-center justify-center px-4 md:px-6"> {/* Changed justify-between to justify-center */}
+        <Link href="/" className="flex items-center"> {/* Removed gap-2 as there's only one item now */}
           {/* 
             Ensure KFC-Logo.png is located at public/images/KFC-Logo.png
             The path in `src` must start with `/` and is relative to the `public` folder.
@@ -16,11 +16,11 @@ export function Header() {
             alt="KFC Logo"
             width={100}
             height={100}
-            priority={false} // Default is false, added to ensure a change is registered
+            priority={false}
           />
-          <h1 className="text-sm font-bold font-national tracking-tight text-kfc-header-brand-red">KFC Rewards Tracker</h1>
+          {/* Title removed */}
         </Link>
-        {/* Login and Sign Up buttons removed */}
+        {/* Login and Sign Up buttons were previously removed */}
       </div>
     </header>
   );
