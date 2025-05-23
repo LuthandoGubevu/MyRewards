@@ -30,7 +30,7 @@ export function Header() {
         {/* User Info - will be pushed to the right by 'justify-end' on the parent */}
         {user && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300 hidden sm:inline">{user.email}</span>
+            <span className="text-sm text-gray-300">{user.email}</span>
             <Button 
               variant="ghost" 
               size="sm" 
@@ -38,8 +38,8 @@ export function Header() {
               disabled={loading}
               className="text-white hover:bg-gray-700 hover:text-white"
             >
-              <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{loading ? 'Logging out...' : 'Logout'}</span>
+              <LogOut className="h-4 w-4" /> {/* Relies on Button's gap-2 for spacing with text */}
+              <span>{loading ? 'Logging out...' : 'Logout'}</span>
             </Button>
           </div>
         )}
