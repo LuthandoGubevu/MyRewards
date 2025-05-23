@@ -1,11 +1,10 @@
-
 "use client";
 
 import type { Milestone } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Gift, ScanLine } from "lucide-react"; // Using Gift as a default icon
+import { Gift, ScanLine } from "lucide-react"; // Using Gift as a default icon
 import Link from "next/link";
 
 // Helper for SVG circular progress
@@ -148,43 +147,6 @@ export function LoyaltyDashboard({ points, milestones, achievedMilestoneIds }: L
           </div>
         </CardContent>
       </Card>
-
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-primary">Rewards & Perks</CardTitle>
-          <CardDescription>See what you can achieve.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {milestones.length > 0 ? (
-            <ul className="space-y-3">
-              {sortedMilestones.map((milestone) => {
-                const isAchieved = points >= milestone.points || achievedMilestoneIds.has(milestone.id);
-                const IconComponent = milestone.icon || Gift;
-                return (
-                  <li 
-                    key={milestone.id} 
-                    className={`flex items-center p-3.5 rounded-lg border transition-all duration-300 ${
-                      isAchieved 
-                        ? 'bg-primary/10 border-primary shadow-sm' 
-                        : 'bg-muted/30 border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <IconComponent className={`h-8 w-8 mr-4 shrink-0 ${isAchieved ? 'text-primary' : 'text-muted-foreground/80'}`} />
-                    <div className="flex-grow">
-                      <h4 className={`font-semibold ${isAchieved ? 'text-primary' : 'text-foreground'}`}>{milestone.reward}</h4>
-                      <p className="text-sm text-muted-foreground">{milestone.points} Points - {milestone.description}</p>
-                    </div>
-                    {isAchieved && <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0 ml-2" />}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">No rewards defined yet.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
-
