@@ -28,7 +28,7 @@ const CircularProgress = ({
     <div className="relative w-36 h-36 sm:w-40 sm:h-40">
       <svg viewBox="0 0 36 36" className="absolute w-full h-full">
         <path
-          className="stroke-white/30" // Changed from hsl(var(--muted))
+          className="stroke-muted" 
           strokeWidth="3"
           fill="none"
           d={`M18 2.0845
@@ -38,7 +38,7 @@ const CircularProgress = ({
       </svg>
       <svg viewBox="0 0 36 36" className="absolute w-full h-full -rotate-90 origin-center">
         <path
-          className="stroke-white transition-all duration-500 ease-out" // Changed from hsl(var(--primary))
+          className="stroke-primary transition-all duration-500 ease-out" 
           strokeWidth="3"
           fill="none"
           strokeDasharray={`${circumference}`}
@@ -50,8 +50,8 @@ const CircularProgress = ({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl sm:text-4xl font-bold text-white">{points}</span> {/* Changed from text-primary */}
-        <span className="text-xs text-white/80 uppercase tracking-wider">{pointsLabel}</span> {/* Changed from text-muted-foreground */}
+        <span className="text-3xl sm:text-4xl font-bold text-primary">{points}</span> 
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">{pointsLabel}</span> 
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ const CircularProgress = ({
 interface LoyaltyDashboardProps {
   points: number;
   milestones: Milestone[];
-  achievedMilestoneIds: Set<string>; // Prop is defined, ensure it's used or handled if not needed
+  achievedMilestoneIds: Set<string>;
 }
 
 export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, milestones, achievedMilestoneIds }) => {
@@ -91,9 +91,8 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
   } else {
     progressToNextPercentage = 100;
     if (points >= finalMilestonePoints) {
-      // Ensure sortedMilestones is not empty before accessing its last element
       if (sortedMilestones.length > 0) {
-        nextMilestone = sortedMilestones[sortedMilestones.length - 1]; // This will be the final milestone if all are achieved
+        nextMilestone = sortedMilestones[sortedMilestones.length - 1]; 
       }
       pointsForNextMilestoneText = "You've unlocked all rewards!";
     }
@@ -105,23 +104,23 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <Card className="shadow-xl overflow-hidden bg-gradient-to-br from-kfc-header-brand-red to-[#ff4d6d] text-white rounded-2xl">
-        <CardContent className="p-6 flex flex-col items-center space-y-4"> {/* Removed bg-card */}
+      <Card className="shadow-xl overflow-hidden rounded-2xl"> {/* Removed gradient and text-white */}
+        <CardContent className="p-6 flex flex-col items-center space-y-4">
           <CircularProgress
             percentage={progressToNextPercentage}
             points={points}
             pointsLabel="TOTAL POINTS"
           />
           <div className="text-center h-16 flex flex-col justify-center">
-            {nextMilestone && points < finalMilestonePoints ? ( // Also check if points are less than final milestone to show next reward
+            {nextMilestone && points < finalMilestonePoints ? (
               <>
-                <p className="text-md sm:text-lg font-medium text-white/80"> {/* Changed from text-muted-foreground */}
+                <p className="text-md sm:text-lg font-medium text-muted-foreground"> 
                   {pointsForNextMilestoneText}
                 </p>
-                <p className="text-white text-lg sm:text-xl font-semibold">{nextMilestone.reward}</p> {/* Changed from text-primary */}
+                <p className="text-primary text-lg sm:text-xl font-semibold">{nextMilestone.reward}</p> 
               </>
             ) : (
-              <p className="text-lg font-semibold text-white">
+              <p className="text-lg font-semibold text-foreground">
                 { points >= finalMilestonePoints ? "You've unlocked all rewards!" : "Set up your milestones!"}
               </p>
             )}
@@ -130,7 +129,7 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
           <Button
             asChild
             size="lg"
-            className="w-full max-w-xs mt-2 bg-white text-kfc-header-brand-red hover:bg-white/90" // Custom button style for contrast
+            className="w-full max-w-xs mt-2" // Use default button variant
           >
             <Link href="/scan" className="flex items-center justify-center">
               <ScanLine className="h-5 w-5 mr-2" />
@@ -140,17 +139,17 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
         </CardContent>
       </Card>
 
-      <Card className="shadow-xl bg-gradient-to-br from-kfc-header-brand-red to-[#ff4d6d] text-white rounded-2xl">
+      <Card className="shadow-xl rounded-2xl"> {/* Removed gradient and text-white */}
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-white">Your Journey</CardTitle> {/* Changed from text-primary */}
-          <CardDescription className="text-white/80">You're {overallProgressPercentage.toFixed(0)}% towards Colonel's Elite status!</CardDescription> {/* Changed from text-muted-foreground */}
+          <CardTitle className="text-2xl font-semibold text-primary">Your Journey</CardTitle> 
+          <CardDescription className="text-muted-foreground">You're {overallProgressPercentage.toFixed(0)}% towards Colonel's Elite status!</CardDescription> 
         </CardHeader>
         <CardContent className="space-y-3">
           <Progress
             value={overallProgressPercentage}
-            className="h-3 bg-white/30 [&>div]:bg-white" // Custom progress bar colors
+            className="h-3 bg-secondary [&>div]:bg-primary" // Adjusted progress bar colors
           />
-          <div className="flex justify-between text-xs text-white/80 font-medium"> {/* Changed from text-muted-foreground */}
+          <div className="flex justify-between text-xs text-muted-foreground font-medium"> 
             <span>Start</span>
             <span>{finalMilestonePoints > 1 ? `${finalMilestonePoints} PTS` : 'Set Milestones'}</span>
             <span>Colonel's Elite</span>
