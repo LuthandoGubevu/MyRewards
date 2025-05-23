@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { LogIn, UserPlus, Utensils } from 'lucide-react';
+import Image from 'next/image'; // Import Image
+import { LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
@@ -7,7 +8,12 @@ export function Header() {
     <header className="bg-white text-black shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <Utensils className="h-8 w-8" />
+          <Image
+            src="/images/KFC-Logo.png"
+            alt="KFC Logo"
+            width={50}
+            height={32}
+          />
           <h1 className="text-xl font-bold tracking-tight">KFC Rewards Tracker</h1>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
