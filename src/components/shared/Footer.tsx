@@ -1,6 +1,7 @@
+
 export function Footer() {
   return (
-    <footer className="bg-muted py-6 text-muted-foreground">
+    <footer className="bg-white text-black shadow-md py-6">
       <div className="container mx-auto px-4 text-center md:px-6">
         <p className="text-sm">
           &copy; {new Date().getFullYear()} KFC Rewards Tracker. All rights reserved.
