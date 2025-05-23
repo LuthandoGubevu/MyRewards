@@ -14,23 +14,19 @@ export function Header() {
             width={50}
             height={32}
           />
-          <h1 className="text-xl font-bold tracking-tight">KFC Rewards Tracker</h1>
+          <h1 className="text-xl font-bold tracking-tight text-kfc-header-brand-red">KFC Rewards Tracker</h1>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" className="text-black hover:bg-gray-100" asChild>
             <Link href="/login">
-              <span className="flex items-center gap-1">
-                <LogIn className="h-4 w-4" />
-                Login
-              </span>
+              <LogIn className="h-4 w-4" />
+              Login
             </Link>
           </Button>
           <Button variant="ghost" className="text-black hover:bg-gray-100" asChild>
             <Link href="/signup">
-              <span className="flex items-center gap-1">
-                <UserPlus className="h-4 w-4" />
-                Sign Up
-              </span>
+              <UserPlus className="h-4 w-4" />
+              Sign Up
             </Link>
           </Button>
         </nav>
