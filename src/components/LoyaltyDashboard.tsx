@@ -28,7 +28,7 @@ const CircularProgress = ({
     <div className="relative w-36 h-36 sm:w-40 sm:h-40">
       <svg viewBox="0 0 36 36" className="absolute w-full h-full">
         <path
-          className="stroke-muted" 
+          className="stroke-white/30" // Changed from stroke-muted
           strokeWidth="3"
           fill="none"
           d={`M18 2.0845
@@ -38,7 +38,7 @@ const CircularProgress = ({
       </svg>
       <svg viewBox="0 0 36 36" className="absolute w-full h-full -rotate-90 origin-center">
         <path
-          className="stroke-primary transition-all duration-500 ease-out" 
+          className="stroke-white transition-all duration-500 ease-out" // Changed from stroke-primary
           strokeWidth="3"
           fill="none"
           strokeDasharray={`${circumference}`}
@@ -50,8 +50,8 @@ const CircularProgress = ({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl sm:text-4xl font-bold text-primary">{points}</span> 
-        <span className="text-xs text-muted-foreground uppercase tracking-wider">{pointsLabel}</span> 
+        <span className="text-3xl sm:text-4xl font-bold text-white">{points}</span> 
+        <span className="text-xs text-white/80 uppercase tracking-wider">{pointsLabel}</span> 
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <Card className="shadow-xl overflow-hidden rounded-2xl"> {/* Removed gradient and text-white */}
+      <Card className="shadow-xl overflow-hidden rounded-2xl bg-gradient-to-br from-[#e4002b] to-[#99001a] text-white">
         <CardContent className="p-6 flex flex-col items-center space-y-4">
           <CircularProgress
             percentage={progressToNextPercentage}
@@ -114,13 +114,13 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
           <div className="text-center h-16 flex flex-col justify-center">
             {nextMilestone && points < finalMilestonePoints ? (
               <>
-                <p className="text-md sm:text-lg font-medium text-muted-foreground"> 
+                <p className="text-md sm:text-lg font-medium text-white/90"> 
                   {pointsForNextMilestoneText}
                 </p>
-                <p className="text-primary text-lg sm:text-xl font-semibold">{nextMilestone.reward}</p> 
+                <p className="text-white text-lg sm:text-xl font-semibold">{nextMilestone.reward}</p> 
               </>
             ) : (
-              <p className="text-lg font-semibold text-foreground">
+              <p className="text-lg font-semibold text-white">
                 { points >= finalMilestonePoints ? "You've unlocked all rewards!" : "Set up your milestones!"}
               </p>
             )}
@@ -129,27 +129,29 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
           <Button
             asChild
             size="lg"
-            className="w-full max-w-xs mt-2" // Use default button variant
+            className="w-full max-w-xs mt-2 bg-white text-[#e4002b] hover:bg-white/90" // Custom style for button on red gradient
           >
-            <Link href="/scan" className="flex items-center justify-center">
-              <ScanLine className="h-5 w-5 mr-2" />
-              Scan QR Code
+            <Link href="/scan">
+              <span className="flex items-center justify-center gap-2">
+                <ScanLine className="h-5 w-5" />
+                Scan QR Code
+              </span>
             </Link>
           </Button>
         </CardContent>
       </Card>
 
-      <Card className="shadow-xl rounded-2xl"> {/* Removed gradient and text-white */}
+      <Card className="shadow-xl rounded-2xl bg-gradient-to-br from-[#e4002b] to-[#99001a] text-white">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-primary">Your Journey</CardTitle> 
-          <CardDescription className="text-muted-foreground">You're {overallProgressPercentage.toFixed(0)}% towards Colonel's Elite status!</CardDescription> 
+          <CardTitle className="text-2xl font-semibold text-white">Your Journey</CardTitle> 
+          <CardDescription className="text-white/80">You're {overallProgressPercentage.toFixed(0)}% towards Colonel's Elite status!</CardDescription> 
         </CardHeader>
         <CardContent className="space-y-3">
           <Progress
             value={overallProgressPercentage}
-            className="h-3 bg-secondary [&>div]:bg-primary" // Adjusted progress bar colors
+            className="h-3 bg-white/30 [&>div]:bg-white" // White progress bar on red gradient
           />
-          <div className="flex justify-between text-xs text-muted-foreground font-medium"> 
+          <div className="flex justify-between text-xs text-white/80 font-medium"> 
             <span>Start</span>
             <span>{finalMilestonePoints > 1 ? `${finalMilestonePoints} PTS` : 'Set Milestones'}</span>
             <span>Colonel's Elite</span>
