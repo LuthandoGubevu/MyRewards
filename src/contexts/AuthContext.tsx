@@ -69,7 +69,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error("Error signing up:", error);
-      toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
+      if (error.code === 'auth/email-already-in-use') {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Signup Failed', 
+          description: 'This email address is already in use. Please try a different email or log in.' 
+        });
+      } else {
+        toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
+      }
     } finally {
       setLoading(false);
     }
