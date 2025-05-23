@@ -4,7 +4,7 @@ import Image from 'next/image'; // Import Image
 
 export function Header() {
   return (
-    <header className="bg-white text-black shadow-md">
+    <header className="bg-black"> {/* Changed background to black, removed text-black and shadow-md */}
       <div className="container mx-auto flex h-28 items-center justify-between px-4 md:px-6"> {/* Adjusted height for larger logo */}
         <Link href="/" className="flex items-center gap-2">
           {/* 
@@ -25,4 +25,3 @@ export function Header() {
     </header>
   );
 }
-
