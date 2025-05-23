@@ -14,7 +14,7 @@ export function Header() {
             width={100} // Changed from 50
             height={100} // Changed from 32
           />
-          <h1 className="text-xl font-bold font-national tracking-tight text-kfc-header-brand-red">KFC Rewards Tracker</h1>
+          <h1 className="text-sm font-bold font-national tracking-tight text-kfc-header-brand-red">KFC Rewards Tracker</h1>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" className="text-black hover:bg-gray-100" asChild>
