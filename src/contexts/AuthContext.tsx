@@ -10,13 +10,21 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  name?: string;
+  phoneNumber?: string;
+  // Add any other user-specific fields you might store in Firestore
+}
+
 interface AuthContextType {
-  user: FirebaseUser | null;
-  loading: boolean;
+  user: AppUser | null; // Changed from FirebaseUser to AppUser
+  loading: boolean; // General loading for auth operations
   signUp: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logIn: (email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
@@ -25,14 +33,34 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true); // For initial auth state check and operations
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in, fetch additional details from Firestore
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setAppUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: userData.name,
+            phoneNumber: userData.phoneNumber,
+            // map other fields from userData as needed
+          });
+        } else {
+          // Should not happen if user is created correctly in signUp
+          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
+        }
+      } else {
+        // User is signed out
+        setAppUser(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -44,14 +72,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
-        // Save user to Firestore
-        const userData: {
+        const userDataToSave: {
           uid: string;
           email: string | null;
           name: string;
           phoneNumber?: string;
-          createdAt: any; // serverTimestamp type
-          lastLogin: any; // serverTimestamp type
+          createdAt: any;
+          lastLogin: any;
         } = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -60,10 +87,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastLogin: serverTimestamp(),
         };
         if (phoneNumber) {
-          userData.phoneNumber = phoneNumber;
+          userDataToSave.phoneNumber = phoneNumber;
         }
-        await setDoc(doc(db, "users", firebaseUser.uid), userData);
-        setUser(firebaseUser);
+        await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
+        
+        setAppUser({ // Set AppUser state
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: name,
+          phoneNumber: phoneNumber,
+        });
         router.push('/');
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
       }
@@ -87,11 +120,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      setUser(userCredential.user);
-      // Optionally update lastLogin timestamp here if needed
-      await setDoc(doc(db, "users", userCredential.user.uid), { lastLogin: serverTimestamp() }, { merge: true });
-      router.push('/');
-      toast({ title: 'Login Successful!', description: 'Welcome back!' });
+      const firebaseUser = userCredential.user;
+      if (firebaseUser) {
+        // Fetch user details from Firestore
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setAppUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: userData.name,
+            phoneNumber: userData.phoneNumber,
+          });
+          // Update lastLogin timestamp
+          await setDoc(doc(db, "users", firebaseUser.uid), { lastLogin: serverTimestamp() }, { merge: true });
+        } else {
+           // Fallback if user doc doesn't exist for some reason
+          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: 'User' });
+        }
+        router.push('/');
+        toast({ title: 'Login Successful!', description: 'Welcome back!' });
+      }
     } catch (error: any) {
       console.error("Error logging in:", error);
       let description = "An unexpected error occurred. Please try again.";
@@ -109,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description = 'This user account has been disabled.';
             break;
           default:
-            description = error.message; // Fallback to Firebase's generic message
+            description = error.message; 
         }
       }
       toast({ variant: 'destructive', title: 'Login Failed', description });
@@ -122,7 +173,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signOut(auth);
-      setUser(null);
+      setAppUser(null);
+      console.log("User logged out. Redirecting to login page..."); // Added console log
       router.push('/login');
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     } catch (error: any) {
@@ -134,7 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, logIn, logOut }}>
+    <AuthContext.Provider value={{ user: appUser, loading, signUp, logIn, logOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -147,3 +199,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    

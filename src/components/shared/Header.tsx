@@ -1,5 +1,5 @@
 
-"use client"; // Needs to be a client component to use hooks
+"use client"; 
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,13 +8,11 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 
 export function Header() {
-  const { user, logOut, loading } = useAuth();
+  const { user: appUser, logOut, loading: authLoading } = useAuth(); // Renamed user to appUser for clarity with AppUser type
 
   return (
     <header className="bg-black">
-      {/* Added 'relative' to the container and changed 'justify-between' to 'justify-end' */}
       <div className="container mx-auto flex h-28 items-center justify-end px-4 md:px-6 relative">
-        {/* Centered Logo using absolute positioning */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <Link href="/" className="flex items-center">
             <Image
@@ -22,24 +20,25 @@ export function Header() {
               alt="KFC Logo"
               width={100}
               height={100}
-              priority={false}
+              priority={false} // Default is false, explicitly set
             />
           </Link>
         </div>
         
-        {/* User Info - will be pushed to the right by 'justify-end' on the parent */}
-        {user && (
+        {appUser && ( // Check appUser which contains name
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">{user.email}</span>
+            <span className="text-sm text-gray-300">
+              Hi, {appUser.name || appUser.email} {/* Display name, fallback to email */}
+            </span>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={logOut} 
-              disabled={loading}
+              disabled={authLoading}
               className="text-white hover:bg-gray-700 hover:text-white"
             >
-              <LogOut className="h-4 w-4" /> {/* Relies on Button's gap-2 for spacing with text */}
-              <span>{loading ? 'Logging out...' : 'Logout'}</span>
+              <LogOut className="h-4 w-4" />
+              <span>{authLoading ? 'Logging out...' : 'Logout'}</span>
             </Button>
           </div>
         )}
@@ -47,3 +46,5 @@ export function Header() {
     </header>
   );
 }
+
+    
