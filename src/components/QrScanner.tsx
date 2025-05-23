@@ -1,27 +1,18 @@
+
 "use client";
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { QrCode, Camera } from 'lucide-react';
 import Image from 'next/image';
-import { useState } from 'react';
+import Link from 'next/link'; // Added Link
 
-interface QrScannerProps {
-  onScanSuccess: () => void;
-}
+// QrScannerProps is no longer needed as onScanSuccess is removed
+// interface QrScannerProps {
+//   onScanSuccess: () => void; // This prop is removed
+// }
 
-export function QrScanner({ onScanSuccess }: QrScannerProps) {
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleScanClick = () => {
-    setIsScanning(true);
-    // Simulate scanning process
-    setTimeout(() => {
-      onScanSuccess();
-      setIsScanning(false);
-    }, 1500); // Simulate a 1.5 second scan
-  };
-
+export function QrScanner(/* Removed onScanSuccess prop */) {
   return (
     <Card className="shadow-lg w-full md:max-w-sm">
       <CardHeader className="text-center">
@@ -32,31 +23,23 @@ export function QrScanner({ onScanSuccess }: QrScannerProps) {
       </CardHeader>
       <CardContent className="flex flex-col items-center space-y-4">
         <div className="w-48 h-48 bg-secondary rounded-lg flex items-center justify-center overflow-hidden">
-          {isScanning ? (
-            <div className="flex flex-col items-center text-primary">
-              <Camera className="h-16 w-16 animate-pulse" />
-              <p className="mt-2 text-sm">Scanning...</p>
-            </div>
-          ) : (
-            <Image 
-              src="https://placehold.co/200x200.png" 
-              alt="QR Code Placeholder" 
-              width={200} 
-              height={200} 
-              data-ai-hint="qr code" 
-              className="object-cover"
-            />
-          )}
+          {/* Static image, no scanning animation needed here anymore */}
+          <Image 
+            src="https://placehold.co/200x200.png" 
+            alt="QR Code Placeholder" 
+            width={200} 
+            height={200} 
+            data-ai-hint="qr code" 
+            className="object-cover"
+          />
         </div>
-        <Button onClick={handleScanClick} disabled={isScanning} className="w-full">
-          {isScanning ? 'Processing...' : (
-            <>
-              <Camera className="mr-2 h-5 w-5" /> Scan QR Code
-            </>
-          )}
+        <Button asChild className="w-full">
+          <Link href="/scan">
+            <Camera className="mr-2 h-5 w-5" /> Open Scanner
+          </Link>
         </Button>
         <p className="text-xs text-muted-foreground text-center">
-          (This is a simulated QR scanner for demo purposes)
+          Click the button to open the camera and scan a QR code.
         </p>
       </CardContent>
     </Card>
