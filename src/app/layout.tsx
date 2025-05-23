@@ -1,16 +1,16 @@
+
 import type { Metadata } from 'next';
-import { Inter as FontSans } from 'next/font/google'; // Using Inter as a common sans-serif
+import { Inter as FontSans } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/shared/Header'; // Re-added Header import
-// import { Footer } from '@/components/shared/Footer'; // Footer remains removed
-import { Toaster } from "@/components/ui/toaster"; // Import Toaster
+import { Header } from '@/components/shared/Header';
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
 
 const fontSans = FontSans({
   subsets: ["latin"],
-  variable: "--font-geist-sans", // Keep variable name for potential Geist compatibility
+  variable: "--font-geist-sans",
 });
-
 
 export const metadata: Metadata = {
   title: 'KFC Rewards Tracker',
@@ -30,12 +30,13 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <Header /> {/* Re-added Header */}
-        <main className="flex-grow container mx-auto px-4 py-8 md:px-6">
-          {children}
-        </main>
-        {/* <Footer /> Footer remains removed */}
-        <Toaster />
+        <AuthProvider> {/* Wrap with AuthProvider */}
+          <Header />
+          <main className="flex-grow container mx-auto px-4 py-8 md:px-6">
+            {children}
+          </main>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );
