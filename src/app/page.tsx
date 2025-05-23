@@ -1,10 +1,8 @@
 
 "use client";
 
-import { PointsBalance } from '@/components/PointsBalance';
-import { RewardTracker } from '@/components/RewardTracker';
-import { QrScanner } from '@/components/QrScanner';
 import { useRewards } from '@/hooks/useRewards';
+import { LoyaltyDashboard } from '@/components/LoyaltyDashboard';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -15,31 +13,29 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
-import { Star } from 'lucide-react'; // Example icon for dialog
+import { Star } from 'lucide-react'; 
 
 export default function HomePage() {
   const { 
     points, 
     milestones, 
     achievedMilestoneIds, 
-    addPoint, // addPoint is still needed if QrScanner was to call it directly, but it's on /scan
     isResetDialogOpen,
     handleResetConfirm,
     handleCloseResetDialog
   } = useRewards();
 
+  // MAX_POINTS_FOR_RESET_PROMPT is defined inside useRewards, but needed for dialog text
+  const MAX_POINTS_FOR_RESET_PROMPT = 1000; 
+
+
   return (
-    <div className="flex flex-col items-center space-y-8 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl items-start">
-        <div className="md:col-span-1 flex flex-col items-center md:items-start space-y-6">
-          <PointsBalance points={points} />
-          <QrScanner /> 
-          {/* Reset Points button has been removed */}
-        </div>
-        <div className="md:col-span-2">
-          <RewardTracker currentPoints={points} milestones={milestones} achievedMilestoneIds={achievedMilestoneIds} />
-        </div>
-      </div>
+    <div className="flex flex-col items-center space-y-8 py-6 md:py-8">
+      <LoyaltyDashboard 
+        points={points} 
+        milestones={milestones} 
+        achievedMilestoneIds={achievedMilestoneIds} 
+      />
 
       <AlertDialog open={isResetDialogOpen} onOpenChange={handleCloseResetDialog}>
         <AlertDialogContent className="max-w-md">
@@ -62,7 +58,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-// Define MAX_POINTS_FOR_RESET_PROMPT here or import from a shared constants file if preferred
-const MAX_POINTS_FOR_RESET_PROMPT = 1000;
-
