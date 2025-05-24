@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
-          const isAdmin = firebaseUser.email === ADMIN_EMAIL; // Check if user is admin
+          const isAdmin = firebaseUser.email === ADMIN_EMAIL;
 
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
@@ -64,23 +64,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (error: any) {
           const isAdminOnAuthError = firebaseUser.email === ADMIN_EMAIL;
-          if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data. Message: ${error.message}`);
-            toast({
-              variant: 'default',
-              title: 'Offline Mode',
-              description: `Your full profile details couldn't be loaded due to a connection issue. Basic information will be used.`,
-              duration: 7000
-            });
+          let toastTitle = 'Profile Load Error';
+          let toastDescription = `We couldn't load your full profile details. Error: ${error.message}`;
+
+          if (error.code === 'permission-denied') {
+            console.warn(`Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
+            toastTitle = 'Permission Issue';
+            toastDescription = `Could not load profile due to a permission error. Please check app configuration or Firestore rules.`;
+          } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
+            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. Message: ${error.message}`);
+            toastTitle = 'Offline Mode';
+            toastDescription = `Your full profile details couldn't be loaded due to a connection issue. Basic information will be used.`;
           } else {
             console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
-            toast({
-              variant: 'destructive',
-              title: 'Profile Load Error',
-              description: `We couldn't load your full profile details. Error: ${error.message}`,
-              duration: 7000
-            });
           }
+          
+          toast({
+            variant: error.code === 'permission-denied' || error.code === 'unavailable' ? 'default' : 'destructive',
+            title: toastTitle,
+            description: toastDescription,
+            duration: 7000
+          });
           setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin: isAdminOnAuthError });
         }
       } else {
@@ -104,16 +108,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           phoneNumber?: string;
           createdAt: any;
           lastLogin: any;
-          points?: number; // Added for admin dashboard
-          visitsCount?: number; // Added for admin dashboard
+          points?: number;
+          visitsCount?: number;
         } = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: name,
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-          points: 0, // Initialize points
-          visitsCount: 0, // Initialize visits
+          points: 0,
+          visitsCount: 0,
         };
         if (phoneNumber && phoneNumber.trim() !== '') {
           userDataToSave.phoneNumber = phoneNumber;
@@ -128,7 +132,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           phoneNumber: phoneNumber && phoneNumber.trim() !== '' ? phoneNumber : undefined,
           isAdmin: firebaseUser.email === ADMIN_EMAIL,
         });
-        router.push('/');
+        if (firebaseUser.email === ADMIN_EMAIL) {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
       }
     } catch (error: any) {
@@ -145,7 +153,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: 'Network Error',
           description: 'Signup failed due to a network issue. Please check your internet connection and try again.',
         });
-      } else {
+      } else if (error.code === 'auth/configuration-not-found') {
+         toast({
+          variant: 'destructive',
+          title: 'Configuration Error',
+          description: 'Signup failed due to a Firebase configuration issue. Please contact support.',
+        });
+      }
+      else {
         toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
       }
     } finally {
@@ -187,16 +202,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (firestoreError: any) {
           const isAdminOnFirestoreError = authenticatedFirebaseUser.email === ADMIN_EMAIL;
-          if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
+          let toastTitle = 'Profile Load Error';
+          let toastDescription = `We couldn't load your full profile details. Error: ${firestoreError.message}`;
+
+          if (firestoreError.code === 'permission-denied') {
+            console.warn(`Firestore permission denied (login) for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}. Check Firestore security rules.`);
+            toastTitle = 'Permission Issue';
+            toastDescription = `Could not load profile due to a permission error. Please check app configuration or Firestore rules.`;
+          } else if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
             console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
+            toastTitle = 'Logged In (Offline Profile)';
+            toastDescription = `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`;
           } else {
             console.error("Error fetching user document during login:", firestoreError);
           }
           setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin: isAdminOnFirestoreError });
           toast({
-            variant: 'default',
-            title: 'Logged In (Offline Profile)',
-            description: `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`,
+            variant: firestoreError.code === 'permission-denied' || firestoreError.code === 'unavailable' ? 'default' : 'destructive',
+            title: toastTitle,
+            description: toastDescription,
             duration: 7000,
           });
         }
@@ -231,6 +255,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error(`${baseErrorMessage} Network request failed during authentication.`);
             toastTitle = 'Network Error';
             description = 'Could not connect to authentication services. Please check your internet connection and try again.';
+            break;
+          case 'auth/configuration-not-found':
+            console.error(`${baseErrorMessage} Firebase configuration not found.`);
+            toastTitle = 'Configuration Error';
+            description = 'Login failed due to a Firebase configuration issue. Please contact support.';
             break;
           default:
             console.error(`Unhandled Firebase Auth Error during login for email "${email}":`, authError);
