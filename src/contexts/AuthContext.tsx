@@ -54,21 +54,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             });
           } else {
             console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
-            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
+            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined }); 
           }
         } catch (error: any) {
           if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data.`, error.message);
+            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data. Message: ${error.message}`);
+            toast({
+              variant: 'default', // Not 'destructive' as it's a known offline scenario
+              title: 'Offline Mode',
+              description: `Your full profile details couldn't be loaded due to a connection issue. Basic information will be used.`,
+              duration: 7000
+            });
           } else {
             console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
+            toast({
+              variant: 'destructive',
+              title: 'Profile Load Error',
+              description: `We couldn't load your full profile details. Error: ${error.message}`,
+              duration: 7000
+            });
           }
-          toast({
-            variant: 'destructive',
-            title: 'Profile Load Error',
-            description: `We couldn't load your full profile details, possibly due to an offline connection. Basic information will be used. Error: ${error.message}`,
-            duration: 7000
-          });
-          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email });
+          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined });
         }
       } else {
         setAppUser(null);
@@ -161,49 +167,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
             console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
-            setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
+            setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined }); 
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not found, using basic info.' });
           }
         } catch (firestoreError: any) {
           if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data.`, firestoreError.message);
+            console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
           } else {
             console.error("Error fetching user document during login:", firestoreError);
           }
-          setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
+          setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined }); 
           toast({
             variant: 'default',
-            title: 'Logged In',
-            description: `Successfully logged in, but could not load your full profile. Please check your internet connection. (${firestoreError.message})`,
+            title: 'Logged In (Offline Profile)',
+            description: `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`,
             duration: 7000,
           });
         }
         router.push('/');
       }
     } catch (authError: any) {
-      console.error("Error logging in (Authentication):", authError);
       let description = "An unexpected error occurred during login. Please try again.";
+      let toastTitle = "Login Failed";
+
       if (authError.code) {
+        console.error(`Login attempt failed with Firebase error code: ${authError.code}, message: ${authError.message}`);
         switch (authError.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
-            description = 'Invalid email or password. Please check your credentials and try again.';
+            description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
             break;
           case 'auth/invalid-email':
-            description = 'The email address is not valid. Please enter a valid email.';
+            description = 'The email address format is not valid. Please enter a valid email.';
             break;
           case 'auth/user-disabled':
-            description = 'This user account has been disabled.';
+            description = 'This user account has been disabled. Please contact support.';
             break;
           case 'auth/network-request-failed':
+            toastTitle = 'Network Error';
             description = 'Could not connect to authentication services. Please check your internet connection and try again.';
             break;
           default:
-            description = authError.message || 'Failed to log in.';
+            console.error("Unhandled Firebase Auth Error during login:", authError);
+            description = authError.message || 'An unknown error occurred. Please try again.';
         }
+      } else {
+        // Non-Firebase error or error without a code
+        console.error("Error logging in (Authentication):", authError);
       }
-      toast({ variant: 'destructive', title: 'Login Failed', description });
+      toast({ variant: 'destructive', title: toastTitle, description });
     } finally {
       setLoading(false);
     }
@@ -239,4 +252,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
