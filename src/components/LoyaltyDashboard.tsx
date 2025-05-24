@@ -102,7 +102,7 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
   }
 
 
-  if (milestones.length === 0 && !userName) { // Adjusted this condition slightly for clarity
+  if (milestones.length === 0 && !userName) { 
     return <p className="text-center text-white/80">Loading loyalty information...</p>;
   }
 
@@ -112,7 +112,7 @@ export const LoyaltyDashboard: React.FC<LoyaltyDashboardProps> = ({ points, mile
         <Card className="shadow-xl overflow-hidden rounded-2xl bg-gradient-to-br from-[#e4002b] to-[#99001a] text-white">
           <CardContent className="p-4 text-center">
             <p className="text-lg sm:text-xl font-semibold">
-              Welcome, {userName}!
+              Hi, {userName}!
             </p>
           </CardContent>
         </Card>
