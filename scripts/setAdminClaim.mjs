@@ -1,53 +1,54 @@
 
+// Use ES module syntax for imports
 import admin from 'firebase-admin';
-// Make sure you have your service account key JSON file
-// and have set the GOOGLE_APPLICATION_CREDENTIALS environment variable
-// For example: export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-file.json"
+import { getAuth } from 'firebase-admin/auth';
 
-// Initialize Firebase Admin SDK
-// If you haven't initialized it elsewhere with a service account
-try {
+// IMPORTANT: Place your serviceAccountKey.json file in this 'scripts' directory.
+// Make sure this file is in your .gitignore to avoid committing it to your repository.
+import serviceAccount from './serviceAccountKey.json' assert { type: 'json' };
+
+if (!admin.apps.length) {
   admin.initializeApp({
-    // If you've already initialized elsewhere with credential, this might not be needed
-    // or you might initialize with a specific credential if not using GOOGLE_APPLICATION_CREDENTIALS
-    // credential: admin.credential.applicationDefault(), // Uses GOOGLE_APPLICATION_CREDENTIALS
+    credential: admin.credential.cert(serviceAccount),
   });
-} catch (error) {
-  if (error.code !== 'app/duplicate-app') {
-    console.error('Firebase Admin SDK initialization error:', error);
-    process.exit(1);
-  }
-  // App already initialized, which is fine.
 }
 
+const ADMIN_EMAIL_TO_SET = "lgubevu@gmail.com"; // The email to grant admin privileges
 
-const adminEmail = 'lgubevu@gmail.com'; // The email of the user to make admin
-
-async function setAdminClaim(email) {
+async function setAdminClaim() {
   try {
-    const user = await admin.auth().getUserByEmail(email);
+    const user = await getAuth().getUserByEmail(ADMIN_EMAIL_TO_SET);
     if (user) {
       const currentClaims = user.customClaims || {};
       if (currentClaims.admin === true) {
-        console.log(`User ${email} (UID: ${user.uid}) is already an admin.`);
+        console.log(`User ${ADMIN_EMAIL_TO_SET} already has admin claims.`);
         return;
       }
 
-      await admin.auth().setCustomUserClaims(user.uid, { ...currentClaims, admin: true });
-      console.log(`Successfully set admin claim for ${email} (UID: ${user.uid})`);
-      console.log('Important: The user may need to re-login or their ID token refreshed on the client-side to see the changes immediately.');
+      await getAuth().setCustomUserClaims(user.uid, { ...currentClaims, admin: true });
+      console.log(`✅ Successfully set admin claim for ${ADMIN_EMAIL_TO_SET} (UID: ${user.uid})`);
+      console.log("IMPORTANT: The user must log out and log back in for the new claims to take effect in the app.");
     } else {
-      console.log(`User with email ${email} not found.`);
+      console.error(`❌ User with email ${ADMIN_EMAIL_TO_SET} not found.`);
     }
   } catch (error) {
-    console.error('Error setting admin claim:', error);
     if (error.code === 'auth/user-not-found') {
-        console.error(`Could not find user with email: ${email}. Please ensure the user has signed up first.`);
+      console.error(`❌ Error: User with email ${ADMIN_EMAIL_TO_SET} was not found in Firebase Authentication.`);
+      console.log("Please ensure the user has signed up for an account first.");
+    } else {
+      console.error("❌ Error setting admin claim:", error.message);
+      console.error("Full error object:", error);
     }
-    process.exit(1);
+    process.exit(1); // Exit with error code
   }
 }
 
-setAdminClaim(adminEmail)
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
+setAdminClaim()
+  .then(() => {
+    console.log("Admin claim script finished.");
+    process.exit(0); // Exit successfully
+  })
+  .catch(() => {
+    // Error is already logged in setAdminClaim, just ensure process exits with error
+    process.exit(1);
+  });
