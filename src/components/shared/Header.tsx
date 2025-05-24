@@ -27,9 +27,7 @@ export function Header() {
         
         {appUser && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">
-              Hi, {appUser.name || appUser.email} {/* Display name, fallback to email */}
-            </span>
+            {/* Removed user greeting span */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -38,7 +36,7 @@ export function Header() {
               className="text-white hover:bg-gray-700 hover:text-white"
             >
               <LogOut className="h-4 w-4" />
-              <span>{authLoading ? 'Logging out...' : 'Logout'}</span>
+              <span className="sm:inline">{authLoading ? 'Logging out...' : 'Logout'}</span>
             </Button>
           </div>
         )}
