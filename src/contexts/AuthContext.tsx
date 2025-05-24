@@ -40,31 +40,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // Indicate loading has started
       if (firebaseUser) {
-        // User is signed in, fetch additional details from Firestore
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          setAppUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: userData.name,
-            phoneNumber: userData.phoneNumber,
-            // map other fields from userData as needed
+        try {
+          // User is signed in, fetch additional details from Firestore
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            setAppUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: userData.name,
+              phoneNumber: userData.phoneNumber,
+              // map other fields from userData as needed
+            });
+          } else {
+            // Should not happen if user is created correctly in signUp
+            console.warn("User document not found in Firestore for UID:", firebaseUser.uid);
+            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
+          }
+        } catch (error: any) {
+          console.error("Error fetching user data from Firestore:", error);
+          toast({
+            variant: 'destructive',
+            title: 'Data Load Error',
+            description: `Could not load your profile. Please check your internet connection. (${error.message})`
           });
-        } else {
-          // Should not happen if user is created correctly in signUp
-          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
+          // Optionally, sign out the user if profile data is critical and app can't function without it
+          // await signOut(auth); 
+          // setAppUser(null); // This would effectively log them out if data fetch fails
         }
       } else {
         // User is signed out
         setAppUser(null);
       }
-      setLoading(false);
+      setLoading(false); // Indicate loading is complete
     });
     return () => unsubscribe();
-  }, []);
+  }, [toast]); // Added toast to dependency array
 
   const signUp = async (email: string, password: string, name: string, phoneNumber?: string) => {
     setLoading(true);
@@ -124,7 +138,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         // Fetch user details from Firestore
         const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        const userDocSnap = await getDoc(userDocRef); // This call can also fail if offline
 
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
@@ -138,6 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await setDoc(doc(db, "users", firebaseUser.uid), { lastLogin: serverTimestamp() }, { merge: true });
         } else {
            // Fallback if user doc doesn't exist for some reason
+           console.warn("User document not found in Firestore for UID:", firebaseUser.uid);
           setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: 'User' });
         }
         router.push('/');
@@ -159,9 +174,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           case 'auth/user-disabled':
             description = 'This user account has been disabled.';
             break;
+          // Firebase Storage/Firestore specific error codes for network issues might be 'unavailable'
+          case 'unavailable': // Common code for network errors from Firestore/Storage
+            description = 'Could not connect to our services. Please check your internet connection and try again.';
+            break;
           default:
-            description = error.message; 
+            // For "Failed to get document because the client is offline." or similar, error.message might be more direct
+            if (error.message && error.message.toLowerCase().includes('offline')) {
+                 description = 'Could not connect to our services. Please check your internet connection and try again.';
+            } else {
+                description = error.message; 
+            }
         }
+      } else if (error.message && error.message.toLowerCase().includes('offline')) {
+        // Catch general "offline" messages if no specific code
+        description = 'Could not connect to our services. Please check your internet connection and try again.';
       }
       toast({ variant: 'destructive', title: 'Login Failed', description });
     } finally {
