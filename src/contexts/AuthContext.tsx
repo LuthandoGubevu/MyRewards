@@ -63,17 +63,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
           } else {
-            console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
+            console.warn("AuthContext: User document not found in Firestore (onAuthStateChanged) for UID:", firebaseUser.uid);
           }
           setAppUser(appUserData);
 
         } catch (error: any) {
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${error.message}`;
-          let consoleMessage = `Error processing user data or claims (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}`;
+          let consoleMessage = `AuthContext: Error processing user data or claims (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}`;
 
           if (error.code === 'permission-denied') {
-            console.warn(`Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
+            console.warn(`AuthContext: Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
             toastTitle = 'Permission Issue';
             toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up or contact support if you are an admin.`;
           } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
@@ -91,19 +91,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             duration: 7000
           });
           // Set basic user data even if Firestore or claims fetch fails
-          // Attempt to get claims again, but don't let it block setting basic user
           let basicIsAdmin = false;
           try {
-            const fallbackTokenResult = await firebaseUser.getIdTokenResult(true);
+            const fallbackTokenResult = await firebaseUser.getIdTokenResult(true); // Attempt to get claims again
             basicIsAdmin = !!fallbackTokenResult.claims.admin;
           } catch (claimError) {
-            console.warn("AuthContext: Could not fetch claims for fallback user data", claimError);
+            console.warn("AuthContext: Could not fetch claims for fallback user data during onAuthStateChanged error handling", claimError);
           }
           setAppUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            name: undefined,
-            phoneNumber: undefined,
+            name: undefined, // Explicitly undefined as Firestore fetch failed
+            phoneNumber: undefined, // Explicitly undefined
             isAdmin: basicIsAdmin
           });
         }
@@ -113,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast]); // Removed router from dependencies as it's stable from next/navigation
 
   const signUp = async (email: string, password: string, name: string, phoneNumber?: string) => {
     setLoading(true);
@@ -145,8 +144,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
 
-        const tokenResult = await firebaseUser.getIdTokenResult(true); // Get claims
-        console.log('AuthContext (signUp): User claims:', tokenResult.claims); // Diagnostic log for claims
+        // After signup, Firebase automatically signs the user in.
+        // We fetch the ID token to get custom claims, though new users won't have admin claim yet unless set by a separate process immediately.
+        const tokenResult = await firebaseUser.getIdTokenResult(true);
+        console.log('AuthContext (signUp): User claims:', tokenResult.claims);
         const isAdmin = !!tokenResult.claims.admin;
 
         setAppUser({
@@ -200,8 +201,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (authenticatedFirebaseUser) {
         toast({ title: 'Login Successful!', description: 'Fetching your profile & permissions...' });
 
+        // Force refresh the token to get the latest custom claims
         const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true);
-        console.log('AuthContext (logIn): User claims:', tokenResult.claims); // Diagnostic log for claims
+        console.log('AuthContext (logIn): User claims:', tokenResult.claims);
         const isAdminFromClaims = !!tokenResult.claims.admin;
 
         let appUserData: AppUser = {
@@ -221,13 +223,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
-            console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
+            console.warn("AuthContext: User document not found in Firestore (login) for UID:", authenticatedFirebaseUser.uid);
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not fully loaded. Using basic info.' });
           }
         } catch (firestoreError: any) {
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${firestoreError.message}`;
-          let consoleMessage = `Error fetching user document during login for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}`;
+          let consoleMessage = `AuthContext: Error fetching user document during login for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}`;
 
           if (firestoreError.code === 'permission-denied') {
             console.warn(`${consoleMessage} Check Firestore security rules.`);
@@ -305,11 +307,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signOut(auth);
       setAppUser(null);
-      console.log("User logged out. Redirecting to login page...");
+      console.log("AuthContext: User logged out. Redirecting to login page...");
       router.push('/login');
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     } catch (error: any) {
-      console.error("Error logging out:", error);
+      console.error("AuthContext: Error logging out:", error);
       toast({ variant: 'destructive', title: 'Logout Failed', description: error.message });
     } finally {
       setLoading(false);

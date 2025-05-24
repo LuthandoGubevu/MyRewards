@@ -7,10 +7,10 @@ import { Gift, Award, Trophy, Star } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 const initialMilestones: Milestone[] = [
-  { id: 'm1', points: 100, reward: '1 FREE Piece of chicken', description: 'Enjoy a delicious piece of our famous chicken.', icon: Star },
-  { id: 'm2', points: 300, reward: 'FREE Lip Balm & Cap Dish', description: 'Some cool KFC swag to show your loyalty.', icon: Gift },
-  { id: 'm3', points: 700, reward: 'Free Towel', description: 'A KFC branded towel, perfect for picnics or the beach.', icon: Award },
-  { id: 'm4', points: 1000, reward: 'Free Headphones', description: 'Listen to your tunes with these KFC headphones.', icon: Trophy },
+  { id: 'm1', points: 100, reward: 'First Gift', description: 'Specific to each store', icon: Star },
+  { id: 'm2', points: 300, reward: 'Secong Gift', description: 'Specific to each store', icon: Gift },
+  { id: 'm3', points: 700, reward: 'Third Gift', description: 'Specific to each store.', icon: Award },
+  { id: 'm4', points: 1000, reward: 'Fourth Gift', description: 'Specific to each store', icon: Trophy },
 ];
 
 const MAX_POINTS_FOR_RESET_PROMPT = 1000;
