@@ -7,50 +7,88 @@ import { useEffect, ReactNode } from 'react';
 import { Header } from '@/components/shared/Header';
 import { Toaster } from "@/components/ui/toaster";
 
-// Wrapper component to handle auth checks and rendering
 export default function AppContent({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const publicPaths = ['/login', '/signup'];
+  const isAdminPath = pathname === '/admin';
   const isPublicPath = publicPaths.includes(pathname);
 
   useEffect(() => {
-    if (!loading) { // Only perform redirects once authentication state is resolved
-      if (user && isPublicPath) {
-        // If user is logged in and on a public path (login/signup), redirect to home/dashboard
-        router.push('/');
-      } else if (!user && !isPublicPath) {
-        // If user is not logged in and not on a public path, redirect to login
-        router.push('/login');
+    if (!loading) {
+      if (user) {
+        // User is logged in
+        if (isPublicPath) {
+          // If user is logged in and on a public path (login/signup), redirect
+          if (user.isAdmin) {
+            router.push('/admin');
+          } else {
+            router.push('/');
+          }
+        } else if (isAdminPath && !user.isAdmin) {
+          // If user is on admin path but is not admin, redirect to home
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "You do not have permission to view this page.",
+          });
+          router.push('/');
+        } else if (!isAdminPath && user.isAdmin && pathname !== '/') {
+            // If admin is on a regular user path (not home or admin), redirect to admin
+            // This prevents admin from being stuck on e.g. /scan
+            // router.push('/admin'); // Optional: force admin to admin page
+        }
+      } else {
+        // User is not logged in
+        if (!isPublicPath && !isAdminPath) {
+          // If user is not logged in and not on a public path or admin path, redirect to login
+          router.push('/login');
+        } else if (isAdminPath) {
+          // If user is not logged in and tries to access admin path, redirect to login
+           toast({
+            variant: "destructive",
+            title: "Authentication Required",
+            description: "Please log in to access the admin dashboard.",
+          });
+          router.push('/login');
+        }
       }
     }
-  }, [user, loading, router, pathname, isPublicPath]);
+  }, [user, loading, router, pathname, isPublicPath, isAdminPath]);
 
-  // While auth is loading and we're on a path that requires auth, show a loading screen
-  if (loading && !isPublicPath) {
+  // Show loading screen for protected routes or admin route while auth is resolving
+  if (loading && (!isPublicPath || isAdminPath)) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
-        {/* Full-screen loading for initial auth check on protected routes */}
         Loading Application...
       </div>
     );
   }
 
   // If auth is loaded, no user, and on a protected path (useEffect will redirect soon)
-  if (!user && !isPublicPath) {
+  if (!user && !isPublicPath && !isAdminPath) {
     return (
        <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
         Redirecting to login...
       </div>
     );
   }
+  
+  // If user tries to access admin page but is not admin (useEffect will redirect)
+  if (user && !user.isAdmin && isAdminPath) {
+    return (
+      <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
+        Redirecting...
+      </div>
+    );
+  }
 
-  // Render normally if user is logged in, or if it's a public path (and useEffect hasn't redirected yet)
+
   return (
     <>
-      <Header /> {/* Header is now rendered on all pages */}
+      <Header />
       <main className="flex-grow container mx-auto px-4 py-8 md:px-6">
         {children}
       </main>
@@ -58,3 +96,5 @@ export default function AppContent({ children }: { children: ReactNode }) {
     </>
   );
 }
+
+    
