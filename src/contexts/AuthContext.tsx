@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 export interface AppUser {
   uid: string;
   email: string | null;
-  name?: string; // Name is optional, fetched from Firestore
-  phoneNumber?: string; // Phone number is optional, fetched from Firestore
+  name?: string; 
+  phoneNumber?: string; 
 }
 
 interface AuthContextType {
@@ -57,7 +57,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
           }
         } catch (error: any) {
-          console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
+          if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
+            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data.`, error.message);
+          } else {
+            console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
+          }
           toast({
             variant: 'destructive',
             title: 'Profile Load Error',
@@ -161,7 +165,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not found, using basic info.' });
           }
         } catch (firestoreError: any) {
-          console.error("Error fetching user document during login:", firestoreError);
+          if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
+            console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data.`, firestoreError.message);
+          } else {
+            console.error("Error fetching user document during login:", firestoreError);
+          }
           setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
           toast({
             variant: 'default',
@@ -231,3 +239,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
