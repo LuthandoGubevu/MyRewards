@@ -49,23 +49,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAppUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              name: userData.name, // This might be undefined if not set
-              phoneNumber: userData.phoneNumber, // This might be undefined
+              name: userData.name,
+              phoneNumber: userData.phoneNumber,
             });
           } else {
             console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
-            // Set basic info, name will be undefined
             setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
           }
         } catch (error: any) {
           console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
           toast({
             variant: 'destructive',
-            title: 'Data Load Error',
-            description: `Could not load your profile details. Please check your internet connection. (${error.message})`,
+            title: 'Profile Load Error',
+            description: `We couldn't load your full profile details, possibly due to an offline connection. Basic information will be used. Error: ${error.message}`,
             duration: 7000
           });
-          // Set basic user info so the app knows user is authenticated
           setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email });
         }
       } else {
@@ -96,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
         };
-        if (phoneNumber && phoneNumber.trim() !== '') { // Ensure phoneNumber is not empty
+        if (phoneNumber && phoneNumber.trim() !== '') {
           userDataToSave.phoneNumber = phoneNumber;
         }
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
@@ -117,6 +115,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           variant: 'destructive', 
           title: 'Signup Failed', 
           description: 'This email address is already in use. Please try a different email or log in.' 
+        });
+      } else if (error.code === 'auth/network-request-failed') {
+        toast({
+          variant: 'destructive',
+          title: 'Network Error',
+          description: 'Signup failed due to a network issue. Please check your internet connection and try again.',
         });
       } else {
         toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
@@ -153,7 +157,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
             console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
-            // Set basic info, name will be undefined
             setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not found, using basic info.' });
           }
@@ -186,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description = 'This user account has been disabled.';
             break;
           case 'auth/network-request-failed':
-            description = 'Could not connect to authentication services. Please check your internet connection.';
+            description = 'Could not connect to authentication services. Please check your internet connection and try again.';
             break;
           default:
             description = authError.message || 'Failed to log in.';
