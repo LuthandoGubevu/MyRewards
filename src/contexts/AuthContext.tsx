@@ -20,7 +20,7 @@ export interface AppUser {
   email: string | null;
   name?: string;
   phoneNumber?: string;
-  isAdmin?: boolean; 
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -46,11 +46,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           // Force refresh the token to get the latest custom claims
           const tokenResult = await firebaseUser.getIdTokenResult(true);
+          console.log('AuthContext: User claims:', tokenResult.claims); // Diagnostic log for claims
           const isAdmin = !!tokenResult.claims.admin;
 
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
-          
+
           let appUserData: AppUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -76,13 +77,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toastTitle = 'Permission Issue';
             toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up or contact support if you are an admin.`;
           } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${error.message}`);
+            console.warn(`AuthContext: Firestore offline during onAuthStateChanged for UID ${firebaseUser.uid}. App is proceeding with basic auth data. Message: ${error.message}`);
             toastTitle = 'Offline Mode';
             toastDescription = `Your full profile details couldn't be loaded. The app seems to be offline. Basic info will be used.`;
           } else {
             console.error(consoleMessage, error);
           }
-          
+
           toast({
             variant: error.code === 'permission-denied' || error.code === 'unavailable' ? 'default' : 'destructive',
             title: toastTitle,
@@ -90,13 +91,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             duration: 7000
           });
           // Set basic user data even if Firestore or claims fetch fails
-          const basicIsAdmin = (await firebaseUser.getIdTokenResult(true).catch(() => ({claims: {}}))).claims.admin === true;
-          setAppUser({ 
-            uid: firebaseUser.uid, 
-            email: firebaseUser.email, 
-            name: undefined, 
-            phoneNumber: undefined, 
-            isAdmin: basicIsAdmin 
+          // Attempt to get claims again, but don't let it block setting basic user
+          let basicIsAdmin = false;
+          try {
+            const fallbackTokenResult = await firebaseUser.getIdTokenResult(true);
+            basicIsAdmin = !!fallbackTokenResult.claims.admin;
+          } catch (claimError) {
+            console.warn("AuthContext: Could not fetch claims for fallback user data", claimError);
+          }
+          setAppUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: undefined,
+            phoneNumber: undefined,
+            isAdmin: basicIsAdmin
           });
         }
       } else {
@@ -136,10 +144,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
-        
-        // New users won't have admin claims immediately. Claims are set by an admin script.
-        // So, isAdmin will be false here by default from claims.
+
         const tokenResult = await firebaseUser.getIdTokenResult(true); // Get claims
+        console.log('AuthContext (signUp): User claims:', tokenResult.claims); // Diagnostic log for claims
         const isAdmin = !!tokenResult.claims.admin;
 
         setAppUser({
@@ -192,9 +199,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (authenticatedFirebaseUser) {
         toast({ title: 'Login Successful!', description: 'Fetching your profile & permissions...' });
-        
-        // Force refresh the token to get the latest custom claims
+
         const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true);
+        console.log('AuthContext (logIn): User claims:', tokenResult.claims); // Diagnostic log for claims
         const isAdminFromClaims = !!tokenResult.claims.admin;
 
         let appUserData: AppUser = {
@@ -227,7 +234,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toastTitle = 'Permission Issue';
             toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up or contact support if you are an admin.`;
           } else if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`${consoleMessage} App is proceeding with basic auth data.`);
+            console.warn(`AuthContext: Firestore offline during login for UID ${authenticatedFirebaseUser.uid}. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
             toastTitle = 'Logged In (Offline Profile)';
             toastDescription = `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`;
           } else {
@@ -240,7 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             duration: 7000,
           });
         }
-        
+
         setAppUser(appUserData);
 
         if (appUserData.isAdmin) {
@@ -323,3 +330,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
