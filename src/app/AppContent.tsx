@@ -6,11 +6,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
 import { Header } from '@/components/shared/Header';
 import { Toaster } from "@/components/ui/toaster";
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 export default function AppContent({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast(); // Initialize useToast
 
   const publicPaths = ['/login', '/signup'];
   const isAdminPath = pathname === '/admin';
@@ -56,19 +58,20 @@ export default function AppContent({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [user, loading, router, pathname, isPublicPath, isAdminPath]);
+  }, [user, loading, router, pathname, isPublicPath, isAdminPath, toast]);
 
   // Show loading screen for protected routes or admin route while auth is resolving
+  // This includes time for fetching custom claims.
   if (loading && (!isPublicPath || isAdminPath)) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
-        Loading Application...
+        Loading Application & Verifying Permissions...
       </div>
     );
   }
 
   // If auth is loaded, no user, and on a protected path (useEffect will redirect soon)
-  if (!user && !isPublicPath && !isAdminPath) {
+  if (!loading && !user && !isPublicPath && !isAdminPath) {
     return (
        <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
         Redirecting to login...
@@ -77,10 +80,10 @@ export default function AppContent({ children }: { children: ReactNode }) {
   }
   
   // If user tries to access admin page but is not admin (useEffect will redirect)
-  if (user && !user.isAdmin && isAdminPath) {
+  if (!loading && user && !user.isAdmin && isAdminPath) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
-        Redirecting...
+        Redirecting... Access Denied.
       </div>
     );
   }
@@ -96,5 +99,3 @@ export default function AppContent({ children }: { children: ReactNode }) {
     </>
   );
 }
-
-    

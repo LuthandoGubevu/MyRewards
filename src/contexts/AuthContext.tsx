@@ -8,7 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  getIdTokenResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -19,7 +20,7 @@ export interface AppUser {
   email: string | null;
   name?: string;
   phoneNumber?: string;
-  isAdmin?: boolean; // Added isAdmin flag
+  isAdmin?: boolean; 
 }
 
 interface AuthContextType {
@@ -32,8 +33,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = "admin@mykfcloyalty.com"; // Define admin email
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,40 +44,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       if (firebaseUser) {
         try {
+          // Force refresh the token to get the latest custom claims
+          const tokenResult = await firebaseUser.getIdTokenResult(true);
+          const isAdmin = !!tokenResult.claims.admin;
+
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
-          const isAdmin = firebaseUser.email === ADMIN_EMAIL;
+          
+          let appUserData: AppUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            isAdmin,
+          };
 
           if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            setAppUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: userData.name,
-              phoneNumber: userData.phoneNumber,
-              isAdmin,
-            });
+            const firestoreData = userDocSnap.data();
+            appUserData.name = firestoreData.name;
+            appUserData.phoneNumber = firestoreData.phoneNumber;
           } else {
-            // This case might occur if user was created in Auth but not in Firestore,
-            // or if Firestore data is cleared. Log it and proceed with basic info.
             console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
-            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin });
           }
+          setAppUser(appUserData);
+
         } catch (error: any) {
-          const isAdminOnAuthError = firebaseUser.email === ADMIN_EMAIL;
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${error.message}`;
+          let consoleMessage = `Error processing user data or claims (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}`;
 
           if (error.code === 'permission-denied') {
             console.warn(`Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
             toastTitle = 'Permission Issue';
-            toastDescription = `Could not load profile due to a permission error. Please ensure Firestore rules are correctly set up.`;
+            toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up or contact support if you are an admin.`;
           } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
             console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${error.message}`);
             toastTitle = 'Offline Mode';
             toastDescription = `Your full profile details couldn't be loaded. The app seems to be offline. Basic info will be used.`;
           } else {
-            console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
+            console.error(consoleMessage, error);
           }
           
           toast({
@@ -87,7 +89,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description: toastDescription,
             duration: 7000
           });
-          setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin: isAdminOnAuthError });
+          // Set basic user data even if Firestore or claims fetch fails
+          const basicIsAdmin = (await firebaseUser.getIdTokenResult(true).catch(() => ({claims: {}}))).claims.admin === true;
+          setAppUser({ 
+            uid: firebaseUser.uid, 
+            email: firebaseUser.email, 
+            name: undefined, 
+            phoneNumber: undefined, 
+            isAdmin: basicIsAdmin 
+          });
         }
       } else {
         setAppUser(null);
@@ -126,15 +136,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
+        
+        // New users won't have admin claims immediately. Claims are set by an admin script.
+        // So, isAdmin will be false here by default from claims.
+        const tokenResult = await firebaseUser.getIdTokenResult(true); // Get claims
+        const isAdmin = !!tokenResult.claims.admin;
 
         setAppUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: name,
           phoneNumber: phoneNumber && phoneNumber.trim() !== '' ? phoneNumber : undefined,
-          isAdmin: firebaseUser.email === ADMIN_EMAIL,
+          isAdmin,
         });
-        if (firebaseUser.email === ADMIN_EMAIL) {
+
+        if (isAdmin) {
           router.push('/admin');
         } else {
           router.push('/');
@@ -142,29 +158,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
       }
     } catch (error: any) {
-      console.error("Error signing up:", error);
+      const baseErrorMessage = `Signup attempt for email "${email}" failed with Firebase error code: ${error.code}, message: ${error.message}.`;
+      let description = error.message || "An unknown error occurred during signup.";
+      let toastTitle = "Signup Failed";
+
       if (error.code === 'auth/email-already-in-use') {
-        toast({
-          variant: 'destructive',
-          title: 'Signup Failed',
-          description: 'This email address is already in use. Please try a different email or log in.'
-        });
+        console.warn(`${baseErrorMessage} - Email already in use.`);
+        description = 'This email address is already in use. Please try a different email or log in.';
       } else if (error.code === 'auth/network-request-failed') {
-        toast({
-          variant: 'destructive',
-          title: 'Network Error',
-          description: 'Signup failed due to a network issue. Please check your internet connection and try again.',
-        });
+         console.error(`${baseErrorMessage} Network request failed.`);
+        toastTitle = 'Network Error';
+        description = 'Signup failed due to a network issue. Please check your internet connection and try again.';
       } else if (error.code === 'auth/configuration-not-found') {
-         toast({
-          variant: 'destructive',
-          title: 'Configuration Error',
-          description: 'Signup failed due to a Firebase configuration issue. Please ensure Firebase is correctly initialized.',
-        });
+        console.error(`${baseErrorMessage} Firebase configuration error.`);
+        toastTitle = 'Configuration Error';
+        description = 'Signup failed due to a Firebase configuration issue. Please ensure Firebase is correctly initialized.';
+      } else {
+        console.error(`Unhandled Firebase Auth Error during signup for email "${email}":`, error);
       }
-      else {
-        toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
-      }
+      toast({ variant: 'destructive', title: toastTitle, description });
     } finally {
       setLoading(false);
     }
@@ -179,58 +191,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       authenticatedFirebaseUser = userCredential.user;
 
       if (authenticatedFirebaseUser) {
-        toast({ title: 'Login Successful!', description: 'Fetching your profile...' });
-        const isAdmin = authenticatedFirebaseUser.email === ADMIN_EMAIL;
+        toast({ title: 'Login Successful!', description: 'Fetching your profile & permissions...' });
+        
+        // Force refresh the token to get the latest custom claims
+        const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true);
+        const isAdminFromClaims = !!tokenResult.claims.admin;
+
+        let appUserData: AppUser = {
+          uid: authenticatedFirebaseUser.uid,
+          email: authenticatedFirebaseUser.email,
+          isAdmin: isAdminFromClaims,
+        };
 
         try {
           const userDocRef = doc(db, "users", authenticatedFirebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
 
           if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            setAppUser({
-              uid: authenticatedFirebaseUser.uid,
-              email: authenticatedFirebaseUser.email,
-              name: userData.name,
-              phoneNumber: userData.phoneNumber,
-              isAdmin,
-            });
+            const firestoreData = userDocSnap.data();
+            appUserData.name = firestoreData.name;
+            appUserData.phoneNumber = firestoreData.phoneNumber;
             await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
-            // This case might occur if user was created in Auth but not in Firestore,
-            // or if Firestore data is cleared. Log it and proceed with basic info.
             console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
-            // Create a basic document if it doesn't exist (optional, consider if this is desired behavior)
-            // await setDoc(doc(db, "users", authenticatedFirebaseUser.uid), { 
-            //   uid: authenticatedFirebaseUser.uid,
-            //   email: authenticatedFirebaseUser.email,
-            //   name: 'User', // Default name
-            //   createdAt: serverTimestamp(),
-            //   lastLogin: serverTimestamp(),
-            //   points: 0,
-            //   visitsCount: 0,
-            // }, { merge: true });
-            setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin });
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not fully loaded. Using basic info.' });
           }
         } catch (firestoreError: any) {
-          const isAdminOnFirestoreError = authenticatedFirebaseUser.email === ADMIN_EMAIL;
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${firestoreError.message}`;
+          let consoleMessage = `Error fetching user document during login for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}`;
 
           if (firestoreError.code === 'permission-denied') {
-            console.warn(`Firestore permission denied (login) for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}. Check Firestore security rules.`);
+            console.warn(`${consoleMessage} Check Firestore security rules.`);
             toastTitle = 'Permission Issue';
-            toastDescription = `Could not load profile due to a permission error. Please ensure Firestore rules are correctly set up.`;
+            toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up or contact support if you are an admin.`;
           } else if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
+            console.warn(`${consoleMessage} App is proceeding with basic auth data.`);
             toastTitle = 'Logged In (Offline Profile)';
             toastDescription = `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`;
           } else {
-            console.error("Error fetching user document during login:", firestoreError);
+            console.error(consoleMessage, firestoreError);
           }
-          setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin: isAdminOnFirestoreError });
           toast({
             variant: firestoreError.code === 'permission-denied' || firestoreError.code === 'unavailable' ? 'default' : 'destructive',
             title: toastTitle,
@@ -238,7 +240,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             duration: 7000,
           });
         }
-        if (isAdmin) {
+        
+        setAppUser(appUserData);
+
+        if (appUserData.isAdmin) {
           router.push('/admin');
         } else {
           router.push('/');
@@ -318,5 +323,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    
