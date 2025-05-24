@@ -36,7 +36,7 @@ export default function HomePage() {
         points={points}
         milestones={milestones}
         achievedMilestoneIds={achievedMilestoneIds}
-        userName={user?.name} // Pass userName to LoyaltyDashboard
+        userName={user?.name || user?.email} // Pass user's name, fallback to email
       />
 
       <AlertDialog open={isResetDialogOpen} onOpenChange={handleCloseResetDialog}>
