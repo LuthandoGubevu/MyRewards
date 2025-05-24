@@ -3,38 +3,40 @@
 
 import { useRewards } from '@/hooks/useRewards';
 import { LoyaltyDashboard } from '@/components/LoyaltyDashboard';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import { Star } from 'lucide-react'; 
+import { Star } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 export default function HomePage() {
-  const { 
-    points, 
-    milestones, 
-    achievedMilestoneIds, 
+  const { user } = useAuth(); // Get user from AuthContext
+  const {
+    points,
+    milestones,
+    achievedMilestoneIds,
     isResetDialogOpen,
     handleResetConfirm,
     handleCloseResetDialog
   } = useRewards();
 
-  // MAX_POINTS_FOR_RESET_PROMPT is defined inside useRewards, but needed for dialog text
-  const MAX_POINTS_FOR_RESET_PROMPT = 1000; 
+  const MAX_POINTS_FOR_RESET_PROMPT = 1000;
 
 
   return (
     <div className="flex flex-col items-center space-y-8 py-6 md:py-8">
-      <LoyaltyDashboard 
-        points={points} 
-        milestones={milestones} 
-        achievedMilestoneIds={achievedMilestoneIds} 
+      <LoyaltyDashboard
+        points={points}
+        milestones={milestones}
+        achievedMilestoneIds={achievedMilestoneIds}
+        userName={user?.name} // Pass userName to LoyaltyDashboard
       />
 
       <AlertDialog open={isResetDialogOpen} onOpenChange={handleCloseResetDialog}>
