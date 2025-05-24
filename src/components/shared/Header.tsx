@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 
 export function Header() {
-  const { user: appUser, logOut, loading: authLoading } = useAuth(); // Renamed user to appUser for clarity with AppUser type
+  const { user: appUser, logOut, loading: authLoading } = useAuth();
 
   return (
     <header className="bg-black">
@@ -20,12 +20,12 @@ export function Header() {
               alt="KFC Logo"
               width={100}
               height={100}
-              priority={false} // Default is false, explicitly set
+              priority={false}
             />
           </Link>
         </div>
         
-        {appUser && ( // Check appUser which contains name
+        {appUser && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-300">
               Hi, {appUser.name || appUser.email} {/* Display name, fallback to email */}
@@ -46,5 +46,3 @@ export function Header() {
     </header>
   );
 }
-
-    

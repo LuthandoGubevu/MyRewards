@@ -17,14 +17,13 @@ import { useToast } from '@/hooks/use-toast';
 export interface AppUser {
   uid: string;
   email: string | null;
-  name?: string;
-  phoneNumber?: string;
-  // Add any other user-specific fields you might store in Firestore
+  name?: string; // Name is optional, fetched from Firestore
+  phoneNumber?: string; // Phone number is optional, fetched from Firestore
 }
 
 interface AuthContextType {
-  user: AppUser | null; // Changed from FirebaseUser to AppUser
-  loading: boolean; // General loading for auth operations
+  user: AppUser | null;
+  loading: boolean;
   signUp: (email: string, password: string, name: string, phoneNumber?: string) => Promise<void>;
   logIn: (email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
@@ -34,7 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true); // For initial auth state check and operations
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -43,7 +42,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true); 
       if (firebaseUser) {
         try {
-          // User is signed in, fetch additional details from Firestore
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
@@ -51,12 +49,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAppUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              name: userData.name,
-              phoneNumber: userData.phoneNumber,
+              name: userData.name, // This might be undefined if not set
+              phoneNumber: userData.phoneNumber, // This might be undefined
             });
           } else {
             console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
-            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: 'User' }); // Set with fallback name
+            // Set basic info, name will be undefined
+            setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email }); 
           }
         } catch (error: any) {
           console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
@@ -66,11 +65,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description: `Could not load your profile details. Please check your internet connection. (${error.message})`,
             duration: 7000
           });
-          // Still set basic user info so the app knows user is authenticated at least
+          // Set basic user info so the app knows user is authenticated
           setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email });
         }
       } else {
-        // User is signed out
         setAppUser(null);
       }
       setLoading(false); 
@@ -98,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
         };
-        if (phoneNumber) {
+        if (phoneNumber && phoneNumber.trim() !== '') { // Ensure phoneNumber is not empty
           userDataToSave.phoneNumber = phoneNumber;
         }
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
@@ -107,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: name,
-          phoneNumber: phoneNumber,
+          phoneNumber: phoneNumber && phoneNumber.trim() !== '' ? phoneNumber : undefined,
         });
         router.push('/');
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
@@ -133,14 +131,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let authenticatedFirebaseUser: FirebaseUser | null = null;
 
     try {
-      // Step 1: Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       authenticatedFirebaseUser = userCredential.user;
 
       if (authenticatedFirebaseUser) {
-        // Auth successful, now try to fetch Firestore data.
-        // The onAuthStateChanged listener will also attempt this, but doing it here
-        // allows for more immediate feedback and state update in the login flow.
         toast({ title: 'Login Successful!', description: 'Fetching your profile...' });
 
         try {
@@ -149,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
-            setAppUser({ // This will trigger UI update
+            setAppUser({ 
               uid: authenticatedFirebaseUser.uid,
               email: authenticatedFirebaseUser.email,
               name: userData.name,
@@ -159,24 +153,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
             console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
-            setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: 'User' });
-            toast({ variant: 'default', title: 'Welcome!', description: 'User profile not found, using basic info.' });
+            // Set basic info, name will be undefined
+            setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
+            toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not found, using basic info.' });
           }
         } catch (firestoreError: any) {
-          // Firestore fetch failed (e.g., offline)
           console.error("Error fetching user document during login:", firestoreError);
-          // Set basic user info as auth succeeded
           setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email }); 
           toast({
-            variant: 'default', // Not 'destructive' because auth itself succeeded
+            variant: 'default',
             title: 'Logged In',
-            description: 'Successfully logged in, but could not load your full profile. Please check your internet connection.',
+            description: `Successfully logged in, but could not load your full profile. Please check your internet connection. (${firestoreError.message})`,
             duration: 7000,
           });
         }
-        router.push('/'); // Redirect after auth success, regardless of Firestore profile fetch outcome
+        router.push('/');
       }
-    } catch (authError: any) { // Errors from signInWithEmailAndPassword itself
+    } catch (authError: any) {
       console.error("Error logging in (Authentication):", authError);
       let description = "An unexpected error occurred during login. Please try again.";
       if (authError.code) {
