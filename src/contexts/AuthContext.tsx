@@ -20,7 +20,8 @@ export interface AppUser {
   email: string | null;
   name?: string;
   phoneNumber?: string;
-  isAdmin?: boolean;
+  isAdmin?: boolean; // This will be determined by custom claims
+  // firestoreRole?: string; // Optional: if you need to store/use the Firestore role for UI separately
 }
 
 interface AuthContextType {
@@ -46,8 +47,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           // Force refresh the token to get the latest custom claims
           const tokenResult = await firebaseUser.getIdTokenResult(true);
-          console.log('AuthContext: User claims:', tokenResult.claims); // Diagnostic log for claims
-          const isAdmin = !!tokenResult.claims.admin;
+          console.log('AuthContext (onAuthStateChanged): User claims:', tokenResult.claims); // Diagnostic log
+          const isAdmin = !!tokenResult.claims.admin; // Derive admin status from custom claim
 
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
@@ -55,13 +56,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           let appUserData: AppUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            isAdmin,
+            isAdmin, // Set based on custom claim
           };
 
           if (userDocSnap.exists()) {
             const firestoreData = userDocSnap.data();
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
+            // appUserData.firestoreRole = firestoreData.role; // Example: store Firestore role if needed for UI
+            console.log('AuthContext (onAuthStateChanged): User Firestore role:', firestoreData.role);
           } else {
             console.warn("AuthContext: User document not found in Firestore (onAuthStateChanged) for UID:", firebaseUser.uid);
           }
@@ -90,20 +93,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description: toastDescription,
             duration: 7000
           });
-          // Set basic user data even if Firestore or claims fetch fails
+          
+          // Fallback: Set basic user data even if Firestore or claims fetch fails
+          // Attempt to get claims again for isAdmin status, but prioritize what was already fetched if possible
           let basicIsAdmin = false;
           try {
-            const fallbackTokenResult = await firebaseUser.getIdTokenResult(true); // Attempt to get claims again
-            basicIsAdmin = !!fallbackTokenResult.claims.admin;
+             if (firebaseUser) { // Check if firebaseUser is still valid
+                const fallbackTokenResult = await firebaseUser.getIdTokenResult(true);
+                basicIsAdmin = !!fallbackTokenResult.claims.admin;
+             }
           } catch (claimError) {
             console.warn("AuthContext: Could not fetch claims for fallback user data during onAuthStateChanged error handling", claimError);
           }
           setAppUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            name: undefined, // Explicitly undefined as Firestore fetch failed
-            phoneNumber: undefined, // Explicitly undefined
-            isAdmin: basicIsAdmin
+            name: undefined, 
+            phoneNumber: undefined, 
+            isAdmin: basicIsAdmin 
           });
         }
       } else {
@@ -112,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [toast]); // Removed router from dependencies as it's stable from next/navigation
+  }, [toast]);
 
   const signUp = async (email: string, password: string, name: string, phoneNumber?: string) => {
     setLoading(true);
@@ -129,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastLogin: any;
           points?: number;
           visitsCount?: number;
+          role?: string; // Default role for new users
         } = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -137,18 +145,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastLogin: serverTimestamp(),
           points: 0,
           visitsCount: 0,
+          role: 'user', // Assign a default role, e.g., 'user'
         };
         if (phoneNumber && phoneNumber.trim() !== '') {
           userDataToSave.phoneNumber = phoneNumber;
         }
 
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
-
+        
         // After signup, Firebase automatically signs the user in.
-        // We fetch the ID token to get custom claims, though new users won't have admin claim yet unless set by a separate process immediately.
-        const tokenResult = await firebaseUser.getIdTokenResult(true);
+        // Fetch ID token to get custom claims. New users won't have admin claim unless set externally.
+        const tokenResult = await firebaseUser.getIdTokenResult(true); 
         console.log('AuthContext (signUp): User claims:', tokenResult.claims);
-        const isAdmin = !!tokenResult.claims.admin;
+        const isAdmin = !!tokenResult.claims.admin; // Admin status from custom claim
 
         setAppUser({
           uid: firebaseUser.uid,
@@ -174,7 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn(`${baseErrorMessage} - Email already in use.`);
         description = 'This email address is already in use. Please try a different email or log in.';
       } else if (error.code === 'auth/network-request-failed') {
-         console.error(`${baseErrorMessage} Network request failed.`);
+         console.warn(`${baseErrorMessage} Network request failed.`);
         toastTitle = 'Network Error';
         description = 'Signup failed due to a network issue. Please check your internet connection and try again.';
       } else if (error.code === 'auth/configuration-not-found') {
@@ -204,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Force refresh the token to get the latest custom claims
         const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true);
         console.log('AuthContext (logIn): User claims:', tokenResult.claims);
-        const isAdminFromClaims = !!tokenResult.claims.admin;
+        const isAdminFromClaims = !!tokenResult.claims.admin; // Admin status from custom claim
 
         let appUserData: AppUser = {
           uid: authenticatedFirebaseUser.uid,
@@ -220,6 +229,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firestoreData = userDocSnap.data();
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
+            // appUserData.firestoreRole = firestoreData.role; // Example
+            console.log('AuthContext (logIn): User Firestore role:', firestoreData.role);
             await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
@@ -280,7 +291,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description = 'This user account has been disabled. Please contact support.';
             break;
           case 'auth/network-request-failed':
-            console.error(`${baseErrorMessage} Network request failed during authentication.`);
+            console.warn(`${baseErrorMessage} Network request failed during authentication.`);
             toastTitle = 'Network Error';
             description = 'Could not connect to authentication services. Please check your internet connection and try again.';
             break;
