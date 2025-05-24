@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
             console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. App is proceeding with basic auth data. Message: ${error.message}`);
             toast({
-              variant: 'default', // Not 'destructive' as it's a known offline scenario
+              variant: 'default', 
               title: 'Offline Mode',
               description: `Your full profile details couldn't be loaded due to a connection issue. Basic information will be used.`,
               duration: 7000
@@ -191,30 +191,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       let toastTitle = "Login Failed";
 
       if (authError.code) {
-        console.error(`Login attempt failed with Firebase error code: ${authError.code}, message: ${authError.message}`);
+        const baseErrorMessage = `Login attempt failed for email "${email}" with Firebase error code: ${authError.code}, message: ${authError.message}`;
         switch (authError.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
+            console.error(`${baseErrorMessage} - This indicates incorrect email or password.`);
             description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
             break;
           case 'auth/invalid-email':
+            console.error(`${baseErrorMessage} - This indicates the email format is invalid.`);
             description = 'The email address format is not valid. Please enter a valid email.';
             break;
           case 'auth/user-disabled':
+            console.error(`${baseErrorMessage} - This user account is disabled.`);
             description = 'This user account has been disabled. Please contact support.';
             break;
           case 'auth/network-request-failed':
+            console.error(`${baseErrorMessage} - Network request failed during authentication.`);
             toastTitle = 'Network Error';
             description = 'Could not connect to authentication services. Please check your internet connection and try again.';
             break;
           default:
-            console.error("Unhandled Firebase Auth Error during login:", authError);
+            console.error(`Unhandled Firebase Auth Error during login for email "${email}":`, authError);
             description = authError.message || 'An unknown error occurred. Please try again.';
         }
       } else {
         // Non-Firebase error or error without a code
-        console.error("Error logging in (Authentication):", authError);
+        console.error(`Error logging in for email "${email}" (Authentication):`, authError);
       }
       toast({ variant: 'destructive', title: toastTitle, description });
     } finally {
@@ -252,3 +256,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
