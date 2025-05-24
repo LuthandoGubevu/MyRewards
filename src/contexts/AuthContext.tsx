@@ -10,7 +10,7 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,6 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               isAdmin,
             });
           } else {
+            // This case might occur if user was created in Auth but not in Firestore,
+            // or if Firestore data is cleared. Log it and proceed with basic info.
             console.warn("User document not found in Firestore for UID (onAuthStateChanged):", firebaseUser.uid);
             setAppUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin });
           }
@@ -70,11 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (error.code === 'permission-denied') {
             console.warn(`Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
             toastTitle = 'Permission Issue';
-            toastDescription = `Could not load profile due to a permission error. Please check app configuration or Firestore rules.`;
+            toastDescription = `Could not load profile due to a permission error. Please ensure Firestore rules are correctly set up.`;
           } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. This is expected if the network is down. Message: ${error.message}`);
+            console.warn(`Firestore offline (onAuthStateChanged): User profile for UID ${firebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${error.message}`);
             toastTitle = 'Offline Mode';
-            toastDescription = `Your full profile details couldn't be loaded due to a connection issue. Basic information will be used.`;
+            toastDescription = `Your full profile details couldn't be loaded. The app seems to be offline. Basic info will be used.`;
           } else {
             console.error("Error fetching user data from Firestore (onAuthStateChanged):", error);
           }
@@ -157,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
          toast({
           variant: 'destructive',
           title: 'Configuration Error',
-          description: 'Signup failed due to a Firebase configuration issue. Please contact support.',
+          description: 'Signup failed due to a Firebase configuration issue. Please ensure Firebase is correctly initialized.',
         });
       }
       else {
@@ -193,12 +195,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               phoneNumber: userData.phoneNumber,
               isAdmin,
             });
-            await setDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() }, { merge: true });
+            await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
+            // This case might occur if user was created in Auth but not in Firestore,
+            // or if Firestore data is cleared. Log it and proceed with basic info.
             console.warn("User document not found in Firestore for UID (login):", authenticatedFirebaseUser.uid);
+            // Create a basic document if it doesn't exist (optional, consider if this is desired behavior)
+            // await setDoc(doc(db, "users", authenticatedFirebaseUser.uid), { 
+            //   uid: authenticatedFirebaseUser.uid,
+            //   email: authenticatedFirebaseUser.email,
+            //   name: 'User', // Default name
+            //   createdAt: serverTimestamp(),
+            //   lastLogin: serverTimestamp(),
+            //   points: 0,
+            //   visitsCount: 0,
+            // }, { merge: true });
             setAppUser({ uid: authenticatedFirebaseUser.uid, email: authenticatedFirebaseUser.email, name: undefined, phoneNumber: undefined, isAdmin });
-            toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not found, using basic info.' });
+            toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not fully loaded. Using basic info.' });
           }
         } catch (firestoreError: any) {
           const isAdminOnFirestoreError = authenticatedFirebaseUser.email === ADMIN_EMAIL;
@@ -208,7 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (firestoreError.code === 'permission-denied') {
             console.warn(`Firestore permission denied (login) for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}. Check Firestore security rules.`);
             toastTitle = 'Permission Issue';
-            toastDescription = `Could not load profile due to a permission error. Please check app configuration or Firestore rules.`;
+            toastDescription = `Could not load profile due to a permission error. Please ensure Firestore rules are correctly set up.`;
           } else if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
             console.warn(`Firestore offline (login): User profile for UID ${authenticatedFirebaseUser.uid} could not be fetched. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
             toastTitle = 'Logged In (Offline Profile)';
@@ -259,7 +273,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           case 'auth/configuration-not-found':
             console.error(`${baseErrorMessage} Firebase configuration not found.`);
             toastTitle = 'Configuration Error';
-            description = 'Login failed due to a Firebase configuration issue. Please contact support.';
+            description = 'Login failed due to a Firebase configuration issue. Please ensure Firebase is correctly initialized.';
             break;
           default:
             console.error(`Unhandled Firebase Auth Error during login for email "${email}":`, authError);
