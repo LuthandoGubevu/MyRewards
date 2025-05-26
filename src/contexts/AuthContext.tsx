@@ -42,11 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
+      console.log('AuthContext (onAuthStateChanged): Firebase user state changed:', firebaseUser?.uid);
       if (firebaseUser) {
         try {
           const tokenResult = await firebaseUser.getIdTokenResult(true); 
-          console.log('AuthContext (onAuthStateChanged): User claims:', tokenResult.claims); 
           const isAdmin = !!tokenResult.claims.admin;
+          console.log('AuthContext (onAuthStateChanged): User claims:', tokenResult.claims, 'isAdmin:', isAdmin);
 
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
@@ -61,8 +62,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firestoreData = userDocSnap.data();
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
+            console.log("AuthContext (onAuthStateChanged): User document found, data:", firestoreData);
           } else {
-            console.warn("AuthContext: User document not found in Firestore (onAuthStateChanged) for UID:", firebaseUser.uid);
+            console.warn("AuthContext (onAuthStateChanged): User document not found in Firestore for UID:", firebaseUser.uid);
+            // If user doc not found, still set basic info and claims-derived admin status
           }
           setAppUser(appUserData);
           console.log("AuthContext (onAuthStateChanged): AppUser set", appUserData);
@@ -70,14 +73,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error: any) {
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${error.message}`;
-          let consoleMessage = `AuthContext: Error processing user data or claims (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}`;
+          let consoleMessage = `AuthContext (onAuthStateChanged): Error processing user data or claims for UID ${firebaseUser.uid}: ${error.message}`;
 
           if (error.code === 'permission-denied') {
-             console.warn(`AuthContext: Firestore permission denied (onAuthStateChanged) for UID ${firebaseUser.uid}: ${error.message}. Check Firestore security rules.`);
+             console.warn(`${consoleMessage}. Check Firestore security rules. Custom claims, not Firestore roles, determine admin access.`);
             toastTitle = 'Permission Issue';
             toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up. Custom claims, not Firestore roles, determine admin access.`;
           } else if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`AuthContext: Firestore offline during onAuthStateChanged for UID ${firebaseUser.uid}. App is proceeding with basic auth data. Message: ${error.message}`);
+            console.warn(`AuthContext (onAuthStateChanged): Firestore offline for UID ${firebaseUser.uid}. App is proceeding with basic auth data. Message: ${error.message}`);
             toastTitle = 'Offline Mode';
             toastDescription = `Your full profile details couldn't be loaded as the app seems to be offline. Basic info will be used.`;
           } else {
@@ -98,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 basicIsAdmin = !!fallbackTokenResult.claims.admin;
              }
           } catch (claimError) {
-            console.warn("AuthContext: Could not fetch claims for fallback user data during onAuthStateChanged error handling", claimError);
+            console.warn("AuthContext (onAuthStateChanged - error fallback): Could not fetch claims for fallback user data", claimError);
           }
           const fallbackUserData: AppUser = {
             uid: firebaseUser.uid,
@@ -108,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             isAdmin: basicIsAdmin 
           };
           setAppUser(fallbackUserData);
-          console.log("AuthContext (onAuthStateChanged - error fallback): AppUser set", fallbackUserData);
+          console.log("AuthContext (onAuthStateChanged - error fallback): AppUser set with basic data", fallbackUserData);
         }
       } else {
         setAppUser(null);
@@ -143,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastLogin: serverTimestamp(),
           points: 0,
           visitsCount: 0,
-          role: 'user', 
+          role: email === 'admin@mykfcloyalty.com' ? 'admin-pending-claim' : 'user',
         };
         if (phoneNumber && phoneNumber.trim() !== '') {
           userDataToSave.phoneNumber = phoneNumber;
@@ -151,23 +154,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         await setDoc(doc(db, "users", firebaseUser.uid), userDataToSave);
         
-        const tokenResult = await firebaseUser.getIdTokenResult(true); 
-        console.log('AuthContext (signUp): User claims:', tokenResult.claims);
-        const isAdmin = !!tokenResult.claims.admin; 
-
-        setAppUser({
+        // Custom claims are set by an admin script, not at signup by the client.
+        // Here, we just initialize a basic AppUser. Admin status will be picked up by onAuthStateChanged after claims are set and token refreshes.
+        const initialAppUser: AppUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: name,
           phoneNumber: phoneNumber && phoneNumber.trim() !== '' ? phoneNumber : undefined,
-          isAdmin,
-        });
+          isAdmin: false, // Default to false; claims will update this later
+        };
+        setAppUser(initialAppUser);
 
-        if (isAdmin) {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard'); // Redirect to dashboard
-        }
+        // For admin users, the claim script needs to be run. Then, upon next login/token refresh, they'll be admin.
+        // For now, all users go to dashboard after signup. Admin redirect happens after claims are confirmed.
+        router.push('/dashboard');
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
       }
     } catch (error: any) {
@@ -207,8 +207,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: 'Login Successful!', description: 'Fetching your profile & permissions...' });
 
         const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true); 
-        console.log('AuthContext (logIn): User claims:', tokenResult.claims);
         const isAdminFromClaims = !!tokenResult.claims.admin;
+        console.log('AuthContext (logIn): User claims:', tokenResult.claims, 'isAdmin:', isAdminFromClaims);
 
         let appUserData: AppUser = {
           uid: authenticatedFirebaseUser.uid,
@@ -227,20 +227,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
-            console.warn("AuthContext: User document not found in Firestore (login) for UID:", authenticatedFirebaseUser.uid);
+            console.warn("AuthContext (logIn): User document not found in Firestore for UID:", authenticatedFirebaseUser.uid);
             toast({ variant: 'default', title: 'Welcome!', description: 'User profile details not fully loaded. Using basic info.' });
           }
         } catch (firestoreError: any) {
           let toastTitle = 'Profile Load Error';
           let toastDescription = `We couldn't load your full profile details. Error: ${firestoreError.message}`;
-          let consoleMessage = `AuthContext: Error fetching user document during login for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}`;
+          let consoleMessage = `AuthContext (logIn): Error fetching user document for UID ${authenticatedFirebaseUser.uid}: ${firestoreError.message}`;
 
           if (firestoreError.code === 'permission-denied') {
-             console.warn(`${consoleMessage} Check Firestore security rules. Custom claims, not Firestore roles, determine admin access.`);
+             console.warn(`${consoleMessage}. Check Firestore security rules. Custom claims, not Firestore roles, determine admin access.`);
             toastTitle = 'Permission Issue';
             toastDescription = `Could not load profile due to a permission error. Ensure Firestore rules are correctly set up.`;
           } else if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes('client is offline'))) {
-            console.warn(`AuthContext: Firestore offline during login for UID ${authenticatedFirebaseUser.uid}. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
+            console.warn(`AuthContext (logIn): Firestore offline for UID ${authenticatedFirebaseUser.uid}. App is proceeding with basic auth data. Message: ${firestoreError.message}`);
             toastTitle = 'Logged In (Offline Profile)';
             toastDescription = `Successfully logged in, but could not load your full profile due to a connection issue. Basic info will be used.`;
           } else {
@@ -262,7 +262,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           router.push('/admin');
         } else {
           console.log('AuthContext (logIn): Regular user detected, redirecting to /dashboard');
-          router.push('/dashboard'); // Redirect to dashboard
+          router.push('/dashboard');
         }
       }
     } catch (authError: any) {
@@ -314,8 +314,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signOut(auth);
       setAppUser(null);
-      console.log("AuthContext: User logged out. Redirecting to login page...");
-      router.push('/login');
+      console.log("AuthContext: User logged out. Redirecting to landing page...");
+      router.push('/'); // Redirect to landing page
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     } catch (error: any) {
       console.error("AuthContext: Error logging out:", error);
@@ -339,3 +339,6 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+
+    
