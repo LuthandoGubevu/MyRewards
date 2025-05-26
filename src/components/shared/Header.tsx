@@ -12,9 +12,9 @@ export function Header() {
 
   return (
     <header className="bg-black">
-      <div className="container mx-auto flex h-28 items-center justify-end px-4 md:px-6 relative">
+      <div className="container mx-auto flex h-28 items-center justify-between px-4 md:px-6 relative">
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link href="/" className="flex items-center">
+          <Link href={appUser ? (appUser.isAdmin ? "/admin" : "/dashboard") : "/"} className="flex items-center">
             <Image
               src="/images/KFC-Logo.png"
               alt="KFC Logo"
@@ -26,8 +26,7 @@ export function Header() {
         </div>
         
         {appUser && (
-          <div className="flex items-center gap-2">
-            {/* Removed user greeting span */}
+          <div className="ml-auto flex items-center gap-2"> {/* Use ml-auto to push to the right */}
             <Button 
               variant="ghost" 
               size="sm" 

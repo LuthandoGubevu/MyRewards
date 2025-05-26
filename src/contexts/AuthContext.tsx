@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       if (firebaseUser) {
         try {
-          const tokenResult = await firebaseUser.getIdTokenResult(true); // Force refresh for claims
+          const tokenResult = await firebaseUser.getIdTokenResult(true); 
           console.log('AuthContext (onAuthStateChanged): User claims:', tokenResult.claims); 
           const isAdmin = !!tokenResult.claims.admin;
 
@@ -61,11 +61,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firestoreData = userDocSnap.data();
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
-            console.log('AuthContext (onAuthStateChanged): User Firestore role (for reference, not for isAdmin):', firestoreData.role);
           } else {
             console.warn("AuthContext: User document not found in Firestore (onAuthStateChanged) for UID:", firebaseUser.uid);
           }
           setAppUser(appUserData);
+          console.log("AuthContext (onAuthStateChanged): AppUser set", appUserData);
 
         } catch (error: any) {
           let toastTitle = 'Profile Load Error';
@@ -93,23 +93,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           let basicIsAdmin = false;
           try {
              if (firebaseUser) { 
-                const fallbackTokenResult = await firebaseUser.getIdTokenResult(true); // Try to get claims again
+                const fallbackTokenResult = await firebaseUser.getIdTokenResult(true); 
                 console.log('AuthContext (onAuthStateChanged - error fallback): User claims:', fallbackTokenResult.claims); 
                 basicIsAdmin = !!fallbackTokenResult.claims.admin;
              }
           } catch (claimError) {
             console.warn("AuthContext: Could not fetch claims for fallback user data during onAuthStateChanged error handling", claimError);
           }
-          setAppUser({
+          const fallbackUserData: AppUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             name: undefined, 
             phoneNumber: undefined, 
             isAdmin: basicIsAdmin 
-          });
+          };
+          setAppUser(fallbackUserData);
+          console.log("AuthContext (onAuthStateChanged - error fallback): AppUser set", fallbackUserData);
         }
       } else {
         setAppUser(null);
+        console.log("AuthContext (onAuthStateChanged): No Firebase user, AppUser set to null");
       }
       setLoading(false);
     });
@@ -163,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (isAdmin) {
           router.push('/admin');
         } else {
-          router.push('/');
+          router.push('/dashboard'); // Redirect to dashboard
         }
         toast({ title: 'Signup Successful!', description: 'Welcome to KFC Rewards!' });
       }
@@ -203,7 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (authenticatedFirebaseUser) {
         toast({ title: 'Login Successful!', description: 'Fetching your profile & permissions...' });
 
-        const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true); // Force refresh for claims
+        const tokenResult = await authenticatedFirebaseUser.getIdTokenResult(true); 
         console.log('AuthContext (logIn): User claims:', tokenResult.claims);
         const isAdminFromClaims = !!tokenResult.claims.admin;
 
@@ -221,7 +224,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firestoreData = userDocSnap.data();
             appUserData.name = firestoreData.name;
             appUserData.phoneNumber = firestoreData.phoneNumber;
-            console.log('AuthContext (logIn): User Firestore role (for reference):', firestoreData.role);
             await updateDoc(doc(db, "users", authenticatedFirebaseUser.uid), { lastLogin: serverTimestamp() });
             toast({ title: 'Profile Loaded!', description: 'Welcome back!' });
           } else {
@@ -253,13 +255,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setAppUser(appUserData);
+        console.log("AuthContext (logIn): AppUser set", appUserData);
 
         if (appUserData.isAdmin) {
           console.log('AuthContext (logIn): Admin user detected, redirecting to /admin');
           router.push('/admin');
         } else {
-          console.log('AuthContext (logIn): Regular user detected, redirecting to /');
-          router.push('/');
+          console.log('AuthContext (logIn): Regular user detected, redirecting to /dashboard');
+          router.push('/dashboard'); // Redirect to dashboard
         }
       }
     } catch (authError: any) {
@@ -336,5 +339,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    

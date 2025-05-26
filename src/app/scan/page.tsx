@@ -22,9 +22,9 @@ export default function ScanPage() {
         <CardContent className="flex flex-col items-center space-y-4">
           <RealTimeQrScanner onScanSuccess={addPoint} />
           <Button variant="outline" asChild className="mt-6 w-full max-w-xs">
-            <Link href="/">
+            <Link href="/dashboard"> {/* Updated Link */}
               <ArrowLeft className="h-4 w-4" />
-              Back to Home
+              Back to Dashboard
             </Link>
           </Button>
         </CardContent>

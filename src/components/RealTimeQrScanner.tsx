@@ -9,7 +9,7 @@ import { CheckCircle, XCircle, CameraOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface RealTimeQrScannerProps {
-  onScanSuccess: () => void; // Changed: doesn't need data as addPoint takes no args
+  onScanSuccess: () => void; 
 }
 
 export function RealTimeQrScanner({ onScanSuccess }: RealTimeQrScannerProps) {
@@ -19,8 +19,8 @@ export function RealTimeQrScanner({ onScanSuccess }: RealTimeQrScannerProps) {
 
   const handleDecode = (result: string) => {
     setScanResult(result);
-    setError(null); // Clear previous errors
-    onScanSuccess(); // Call the passed callback
+    setError(null); 
+    onScanSuccess(); 
     console.log('Scanned QR Code:', result);
   };
 
@@ -32,7 +32,6 @@ export function RealTimeQrScanner({ onScanSuccess }: RealTimeQrScannerProps) {
     } else if (error?.name === 'NotFoundError' || error?.name === 'OverconstrainedError') {
       errorMessage = 'No suitable camera found. Please ensure a camera is connected, enabled, and not in use by another application.';
     } else if (error?.message) {
-      // Check for common messages if the library doesn't provide a specific name
       if (error.message.toLowerCase().includes('permission denied')) {
          errorMessage = 'Camera access was denied. Please enable camera permissions in your browser settings and refresh the page.';
       } else if (error.message.toLowerCase().includes('no video input devices found')) {
@@ -53,7 +52,7 @@ export function RealTimeQrScanner({ onScanSuccess }: RealTimeQrScannerProps) {
             onDecode={handleDecode}
             onError={handleError}
             constraints={{ 
-              audio: false, // Ensure audio is not requested
+              audio: false, 
               video: { facingMode: 'environment' } 
             }}
             scanDelay={300}
@@ -89,15 +88,14 @@ export function RealTimeQrScanner({ onScanSuccess }: RealTimeQrScannerProps) {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/dashboard')} // Updated Link
             >
-              Back to Home
+              Back to Dashboard
             </Button>
            </div>
         </Alert>
       )}
 
-      {/* Fallback UI if camera is not available and scanner is not active due to error */}
       {!scanResult && error && (
          <div className="w-full aspect-video bg-muted rounded-lg shadow-lg flex flex-col items-center justify-center p-4">
             <CameraOff className="h-16 w-16 text-muted-foreground mb-4" />

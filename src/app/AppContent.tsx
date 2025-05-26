@@ -14,8 +14,10 @@ export default function AppContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const publicPaths = ['/login', '/signup'];
+  // Landing page ('/'), login, and signup are public.
+  const publicPaths = ['/', '/login', '/signup'];
   const isAdminPath = pathname === '/admin';
+  const isDashboardPath = pathname === '/dashboard';
   const isPublicPath = publicPaths.includes(pathname);
 
   useEffect(() => {
@@ -25,33 +27,35 @@ export default function AppContent({ children }: { children: ReactNode }) {
       if (user) {
         // User is logged in
         console.log('AppContent: User is logged in. isAdmin:', user.isAdmin);
-        if (isPublicPath) {
+        if (isPublicPath) { // Includes landing page '/'
           console.log('AppContent: User on public path, redirecting. Admin status:', user.isAdmin);
           if (user.isAdmin) {
             router.push('/admin');
           } else {
-            router.push('/');
+            router.push('/dashboard');
           }
         } else if (isAdminPath && !user.isAdmin) {
-          console.log('AppContent: User on admin path but is not admin. Redirecting to home.');
+          console.log('AppContent: User on admin path but is not admin. Redirecting to dashboard.');
           toast({
             variant: "destructive",
             title: "Access Denied",
             description: "You do not have permission to view this page.",
           });
-          router.push('/');
-        } else if (!isAdminPath && user.isAdmin && pathname !== '/') {
-            console.log('AppContent: Admin user on non-admin, non-home page. Current path:', pathname);
-            // Optional: force admin to admin page if they navigate to other user pages
-            // router.push('/admin'); 
+          router.push('/dashboard');
+        } else if (isDashboardPath && user.isAdmin) {
+          // If admin somehow lands on /dashboard, redirect them to /admin
+           console.log('AppContent: Admin user on /dashboard path. Redirecting to /admin.');
+           router.push('/admin');
         }
       } else {
         // User is not logged in
         console.log('AppContent: User is not logged in.');
+        // If not on a public path and not trying to access admin (which has its own block), redirect to login.
+        // This handles /dashboard, /scan, etc. for unauthenticated users.
         if (!isPublicPath && !isAdminPath) {
-          console.log('AppContent: User not logged in and not on public/admin path. Redirecting to login.');
+          console.log('AppContent: User not logged in and on protected path. Redirecting to login.');
           router.push('/login');
-        } else if (isAdminPath) {
+        } else if (isAdminPath) { // Unauthenticated user trying to access admin path
           console.log('AppContent: User not logged in and trying to access admin path. Redirecting to login.');
            toast({
             variant: "destructive",
@@ -60,12 +64,14 @@ export default function AppContent({ children }: { children: ReactNode }) {
           });
           router.push('/login');
         }
+        // If on a public path (e.g. '/', '/login', '/signup') and not logged in, no redirect is needed.
       }
     }
-  }, [user, loading, router, pathname, isPublicPath, isAdminPath, toast]);
+  }, [user, loading, router, pathname, isPublicPath, isAdminPath, isDashboardPath, toast]);
 
-  if (loading && (!isPublicPath || isAdminPath)) {
-    console.log('AppContent: Showing loading screen (protected/admin route, auth resolving).');
+  // Show loading screen for non-public pages while auth is resolving
+  if (loading && !isPublicPath) {
+    console.log('AppContent: Showing loading screen (protected route, auth resolving).');
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
         Loading Application & Verifying Permissions...
@@ -73,6 +79,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
     );
   }
 
+  // If auth loaded, no user, and on a protected path (redirect will happen via useEffect)
   if (!loading && !user && !isPublicPath && !isAdminPath) {
     console.log('AppContent: Auth loaded, no user, on protected path. Redirecting to login soon via useEffect.');
     return (
@@ -82,6 +89,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
     );
   }
   
+  // If auth loaded, user is not admin, but on admin path (redirect will happen via useEffect)
   if (!loading && user && !user.isAdmin && isAdminPath) {
     console.log('AppContent: Auth loaded, user is not admin, on admin path. Redirecting soon via useEffect.');
     return (
