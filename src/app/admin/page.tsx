@@ -40,6 +40,7 @@ const chartConfigMilestoneRedemptions = {
 
 
 export default function AdminPage() {
+  console.log("AdminPage component rendering..."); // Added console log
   const { user, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
