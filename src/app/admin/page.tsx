@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricCard } from '@/components/admin/MetricCard';
 import type { MockUser } from '@/lib/mockAdminData'; // Keep type for table structure
-import { Users, Activity, Gift, BarChart3, TrendingUp, Download, Settings, ScanLine, UserPlus, ListChecks, Clock } from 'lucide-react';
+import { Users, Activity, Gift, BarChart3, TrendingUp, Download, Settings, ScanLine, UserPlus, ListChecks, Clock, Award, Trophy } from 'lucide-react'; // Added Award and Trophy
 import {
   ChartContainer,
   ChartTooltip,
@@ -327,7 +327,7 @@ export default function AdminPage() {
           <CardContent className="space-y-4">
             {/* Mocked sub-metrics for now */}
             <div className="grid gap-4 md:grid-cols-2">
-              <MetricCard title="Avg. Points/Patron" value={totalRegisteredUsers > 0 ? (Number(totalPointsIssued)/Number(totalRegisteredUsers)).toFixed(1) : 0} />
+              <MetricCard title="Avg. Points/Patron" value={totalRegisteredUsers > 0 && typeof totalRegisteredUsers === 'number' && typeof totalPointsIssued === 'number' ? (totalPointsIssued / totalRegisteredUsers).toFixed(1) : "0"} />
               <MetricCard title="Total Points Redeemed" value={"N/A (mock)"} />
             </div>
             <div className="h-[200px] w-full">
@@ -420,5 +420,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
