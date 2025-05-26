@@ -38,7 +38,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
           }
         } else if (isAdminPath && !user.isAdmin) {
           // User is on admin path but is not admin
-          console.log('AppContent: User on admin path but is not admin. Redirecting to dashboard.');
+          console.log('AppContent: User on admin path but is NOT admin. Redirecting to dashboard.');
           toast({
             variant: "destructive",
             title: "Access Denied",
@@ -78,6 +78,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
   // If auth loaded, no user, and on a protected path (redirect will happen via useEffect)
   if (!loading && !user && !isPublicPath && !isAdminPath) {
     console.log('AppContent: Auth loaded, no user, on protected path. Redirecting to login soon via useEffect.');
+    // This state usually shows briefly as useEffect handles the redirect
     return (
        <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
         Redirecting to login...
@@ -88,6 +89,7 @@ export default function AppContent({ children }: { children: ReactNode }) {
   // If auth loaded, user is not admin, but on admin path (redirect will happen via useEffect)
   if (!loading && user && !user.isAdmin && isAdminPath) {
     console.log('AppContent: Auth loaded, user is not admin, on admin path. Redirecting soon via useEffect.');
+     // This state usually shows briefly as useEffect handles the redirect
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
         Redirecting... Access Denied.
@@ -106,3 +108,4 @@ export default function AppContent({ children }: { children: ReactNode }) {
     </>
   );
 }
+
