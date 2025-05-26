@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, LineChart, ResponsiveContainer, Area, AreaChart } from "recharts"
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 
 const chartConfigPoints = {
@@ -40,28 +42,92 @@ const chartConfigMilestoneRedemptions = {
 
 
 export default function AdminPage() {
-  console.log("AdminPage component rendering..."); // Added console log
-  const { user, loading } = useAuth();
+  console.log("AdminPage component rendering...");
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [usersData, setUsersData] = useState<MockUser[]>([]);
   const [statsData, setStatsData] = useState<typeof mockAdminStats | null>(null);
 
+  // State for real data
+  const [realTotalRegisteredUsers, setRealTotalRegisteredUsers] = useState<number | string>("Loading...");
+  const [realTotalScans, setRealTotalScans] = useState<number | string>("Loading...");
+  const [realTotalPointsIssued, setRealTotalPointsIssued] = useState<number | string>("Loading...");
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
   useEffect(() => {
-    if (!loading && (!user || !user.isAdmin)) {
+    if (!authLoading && (!user || !user.isAdmin)) {
       toast({
         variant: "destructive",
         title: "Access Denied",
         description: "You do not have permission to view this page.",
       });
-      router.push('/'); // Redirect if not admin or not logged in
+      router.push('/'); 
     }
-    // In a real app, fetch data here. For now, use mock data.
+    // Set mock data for parts of the dashboard still using it
     setUsersData(mockUsers);
     setStatsData(mockAdminStats);
-  }, [user, loading, router, toast]);
 
-  if (loading || !user || !user.isAdmin || !statsData) {
+    // Fetch real data if user is admin
+    if (user?.isAdmin) {
+      const fetchData = async () => {
+        setIsDataLoading(true);
+        try {
+          // Fetch total registered users
+          const usersCollectionRef = collection(db, 'users');
+          const usersSnapshot = await getDocs(usersCollectionRef);
+          setRealTotalRegisteredUsers(usersSnapshot.size);
+
+          // Fetch total points issued
+          let totalPoints = 0;
+          usersSnapshot.forEach((doc) => {
+            totalPoints += doc.data().points || 0; 
+          });
+          setRealTotalPointsIssued(totalPoints);
+
+          // Fetch total QR scans
+          try {
+            const scansCollectionRef = collection(db, 'scans');
+            const scansSnapshot = await getDocs(scansCollectionRef);
+            setRealTotalScans(scansSnapshot.size);
+          } catch (scanError: any) {
+            if (scanError.code === 'permission-denied') {
+                 console.warn("Permission denied fetching scans collection. Ensure Firestore rules allow admin access. Defaulting to 0.", scanError);
+                 toast({
+                    variant: "default",
+                    title: "Scan Data Restricted",
+                    description: "Could not load QR scan totals due to permission issues. Check Firestore rules.",
+                 });
+            } else {
+                console.warn("Could not fetch scans collection (it might not exist yet), defaulting to 0. Error:", scanError);
+            }
+            setRealTotalScans(0); 
+          }
+
+        } catch (error: any) {
+          console.error("Error fetching admin dashboard data:", error);
+          let description = "Could not load real-time data for the dashboard.";
+          if (error.code === 'permission-denied') {
+            description = "Permission denied when fetching data. Please check Firestore security rules.";
+          }
+          toast({
+            variant: "destructive",
+            title: "Data Fetch Error",
+            description: description,
+          });
+          // Fallback to N/A or 0 if fetching fails
+          setRealTotalRegisteredUsers("N/A");
+          setRealTotalPointsIssued("N/A");
+          setRealTotalScans("N/A");
+        } finally {
+          setIsDataLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [user, authLoading, router, toast]);
+
+  if (authLoading || !user || !user.isAdmin || !statsData) {
     return (
       <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center">
         <p className="text-lg">Loading Admin Dashboard & Verifying Permissions...</p>
@@ -81,10 +147,10 @@ export default function AdminPage() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Total Registered Users" value={statsData.totalRegisteredUsers} icon={Users} />
-        <MetricCard title="Active Users (30 days)" value={statsData.activeUsersLast30Days} icon={Activity} description="Based on recent activity" />
-        <MetricCard title="Total QR Scans" value={statsData.totalScans} icon={ScanLine} description="All-time scans" />
-        <MetricCard title="Total Points Issued" value={statsData.totalPointsIssued} icon={Gift} />
+        <MetricCard title="Total Registered Users" value={realTotalRegisteredUsers} icon={Users} />
+        <MetricCard title="Active Users (30 days)" value={statsData.activeUsersLast30Days} icon={Activity} description="Based on recent activity (mock)" />
+        <MetricCard title="Total QR Scans" value={realTotalScans} icon={ScanLine} description="All-time scans" />
+        <MetricCard title="Total Points Issued" value={realTotalPointsIssued} icon={Gift} />
       </div>
       
       {/* Charts & Graphs Section */}
@@ -113,7 +179,7 @@ export default function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Reward Redemptions by Milestone</CardTitle>
-            <CardDescription>Number of users who have redeemed rewards at each point milestone.</CardDescription>
+            <CardDescription>Number of users who have redeemed rewards at each point milestone (mock).</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
@@ -133,7 +199,7 @@ export default function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><UserPlus className="mr-2 h-5 w-5 text-primary" />Daily Signups</CardTitle>
-            <CardDescription>New user registrations per day for the last week.</CardDescription>
+            <CardDescription>New user registrations per day for the last week (mock).</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
@@ -152,8 +218,8 @@ export default function AdminPage() {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Points Analytics</CardTitle>
-             <CardDescription>Current distribution of points among users.</CardDescription>
+            <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Points Analytics (Mock)</CardTitle>
+             <CardDescription>Current distribution of points among users (mock).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -179,7 +245,7 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center"><Users className="mr-2 h-5 w-5 text-primary" />User Management</CardTitle>
-          <CardDescription>List of all registered users. (Search, sort, and claimed rewards are placeholders)</CardDescription>
+          <CardDescription>List of all registered users. (Search, sort, and claimed rewards are placeholders from mock data)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -246,3 +312,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
