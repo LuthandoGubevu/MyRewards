@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricCard } from '@/components/admin/MetricCard';
-import { mockUsers, mockAdminStats, type MockUser } from '@/lib/mockAdminData';
+import type { MockUser } from '@/lib/mockAdminData'; // Keep type for table structure
 import { Users, Activity, Gift, BarChart3, TrendingUp, Download, Settings, ScanLine, UserPlus, ListChecks, Clock } from 'lucide-react';
 import {
   ChartContainer,
@@ -17,18 +17,22 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, LineChart, ResponsiveContainer, Area, AreaChart } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, LineChart, Area, AreaChart } from "recharts"
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { differenceInDays, format, startOfDay, subDays, eachDayOfInterval, parseISO } from 'date-fns';
+import type { Milestone } from '@/types'; // For milestone definitions
 
-
-const chartConfigPoints = {
-  users: { label: "Users", color: "hsl(var(--chart-1))" },
-} satisfies Record<string, any>;
+// Define milestones similarly to useRewards.ts for consistency in admin view
+const adminMilestones: Milestone[] = [
+  { id: 'm1', points: 100, reward: '100 Points Reward', description: '...', icon: Gift },
+  { id: 'm2', points: 300, reward: '300 Points Reward', description: '...', icon: Gift },
+  { id: 'm3', points: 700, reward: '700 Points Reward', description: '...', icon: Award },
+  { id: 'm4', points: 1000, reward: '1000 Points Reward', description: '...', icon: Trophy },
+];
 
 const chartConfigVisits = {
-  visits: { label: "Visits", color: "hsl(var(--chart-2))" },
   scans: { label: "Scans", color: "hsl(var(--chart-3))" },
 } satisfies Record<string, any>;
 
@@ -37,23 +41,40 @@ const chartConfigSignups = {
 } satisfies Record<string, any>;
 
 const chartConfigMilestoneRedemptions = {
-  count: { label: "Redemptions", color: "hsl(var(--chart-5))" },
+  count: { label: "Users Reached", color: "hsl(var(--chart-5))" },
 } satisfies Record<string, any>;
 
+const chartConfigPointsDistribution = {
+  users: { label: "Users", color: "hsl(var(--chart-1))" },
+} satisfies Record<string, any>;
+
+interface UserDataForTable extends MockUser { // Re-use MockUser for structure, but data will be real
+  lastLoginDate?: string; // For display
+}
 
 export default function AdminPage() {
   console.log("AdminPage component rendering...");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [usersData, setUsersData] = useState<MockUser[]>([]);
-  const [statsData, setStatsData] = useState<typeof mockAdminStats | null>(null);
 
-  // State for real data
-  const [realTotalRegisteredUsers, setRealTotalRegisteredUsers] = useState<number | string>("Loading...");
-  const [realTotalScans, setRealTotalScans] = useState<number | string>("Loading...");
-  const [realTotalPointsIssued, setRealTotalPointsIssued] = useState<number | string>("Loading...");
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  // State for real data metrics
+  const [totalRegisteredUsers, setTotalRegisteredUsers] = useState<number | string>("Loading...");
+  const [activeUsers30Days, setActiveUsers30Days] = useState<number | string>("Loading...");
+  const [totalScans, setTotalScans] = useState<number | string>("Loading...");
+  const [totalPointsIssued, setTotalPointsIssued] = useState<number | string>("Loading...");
+
+  // State for chart data
+  const [scansPerDayData, setScansPerDayData] = useState<any[]>([]);
+  const [rewardRedemptionsData, setRewardRedemptionsData] = useState<any[]>([]);
+  const [dailySignupsData, setDailySignupsData] = useState<any[]>([]);
+  const [pointsDistributionData, setPointsDistributionData] = useState<any[]>([]);
+  
+  // State for user table data
+  const [userTableData, setUserTableData] = useState<UserDataForTable[]>([]);
+
 
   useEffect(() => {
     if (!authLoading && (!user || !user.isAdmin)) {
@@ -63,45 +84,110 @@ export default function AdminPage() {
         description: "You do not have permission to view this page.",
       });
       router.push('/'); 
+      return;
     }
-    // Set mock data for parts of the dashboard still using it
-    setUsersData(mockUsers);
-    setStatsData(mockAdminStats);
 
-    // Fetch real data if user is admin
-    if (user?.isAdmin) {
+    if (user?.isAdmin && !authLoading) {
       const fetchData = async () => {
         setIsDataLoading(true);
         try {
-          // Fetch total registered users
+          // Fetch all users
           const usersCollectionRef = collection(db, 'users');
           const usersSnapshot = await getDocs(usersCollectionRef);
-          setRealTotalRegisteredUsers(usersSnapshot.size);
+          const fetchedUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
-          // Fetch total points issued
-          let totalPoints = 0;
-          usersSnapshot.forEach((doc) => {
-            totalPoints += doc.data().points || 0; 
+          setTotalRegisteredUsers(fetchedUsers.length);
+
+          let sumPoints = 0;
+          fetchedUsers.forEach(u => {
+            sumPoints += u.points || 0;
           });
-          setRealTotalPointsIssued(totalPoints);
+          setTotalPointsIssued(sumPoints);
 
-          // Fetch total QR scans
+          const thirtyDaysAgo = subDays(new Date(), 30);
+          const activeCount = fetchedUsers.filter(u => u.lastLogin && (u.lastLogin as Timestamp).toDate() > thirtyDaysAgo).length;
+          setActiveUsers30Days(activeCount);
+
+          // Prepare user table data
+          setUserTableData(fetchedUsers.map(u => ({
+            id: u.id,
+            name: u.name || 'N/A',
+            email: u.email,
+            totalPoints: u.points || 0,
+            // Use lastLogin as a proxy for lastVisitDate for the table
+            lastVisitDate: u.lastLogin ? format((u.lastLogin as Timestamp).toDate(), 'yyyy-MM-dd') : 'N/A',
+            visitsCount: u.visitsCount || 0,
+            claimedRewardsCount: u.claimedRewardsCount || 0,
+          })));
+          
+          // Calculate Daily Signups (last 7 days)
+          const sevenDaysAgo = startOfDay(subDays(new Date(), 7));
+          const recentSignups = fetchedUsers.filter(u => u.createdAt && (u.createdAt as Timestamp).toDate() >= sevenDaysAgo);
+          const signupsByDay: Record<string, number> = {};
+          eachDayOfInterval({ start: sevenDaysAgo, end: startOfDay(new Date()) }).forEach(day => {
+            signupsByDay[format(day, 'yyyy-MM-dd')] = 0;
+          });
+          recentSignups.forEach(u => {
+            const signupDate = format((u.createdAt as Timestamp).toDate(), 'yyyy-MM-dd');
+            if (signupsByDay[signupDate] !== undefined) {
+              signupsByDay[signupDate]++;
+            }
+          });
+          setDailySignupsData(Object.entries(signupsByDay).map(([date, count]) => ({ date, signups: count })).sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()));
+
+          // Calculate Points Distribution
+          const pointsBuckets = { '0-100': 0, '101-300': 0, '301-700': 0, '701-1000': 0, '>1000': 0 };
+          fetchedUsers.forEach(u => {
+            const p = u.points || 0;
+            if (p <= 100) pointsBuckets['0-100']++;
+            else if (p <= 300) pointsBuckets['101-300']++;
+            else if (p <= 700) pointsBuckets['301-700']++;
+            else if (p <= 1000) pointsBuckets['701-1000']++;
+            else pointsBuckets['>1000']++;
+          });
+          setPointsDistributionData(Object.entries(pointsBuckets).map(([name, users]) => ({ name, users })));
+
+          // Calculate Reward Redemptions (users who reached milestone points)
+          const redemptions = adminMilestones.map(m => ({
+            milestone: `${m.points} PTS`,
+            count: fetchedUsers.filter(u => (u.points || 0) >= m.points).length,
+          }));
+          setRewardRedemptionsData(redemptions);
+
+          // Fetch scans data
           try {
             const scansCollectionRef = collection(db, 'scans');
             const scansSnapshot = await getDocs(scansCollectionRef);
-            setRealTotalScans(scansSnapshot.size);
+            setTotalScans(scansSnapshot.size);
+            const fetchedScans = scansSnapshot.docs.map(doc => doc.data() as { timestamp: Timestamp });
+
+            // Calculate Scans Per Day (last 7 days)
+            const recentScans = fetchedScans.filter(s => s.timestamp && s.timestamp.toDate() >= sevenDaysAgo);
+            const scansByDay: Record<string, number> = {};
+            eachDayOfInterval({ start: sevenDaysAgo, end: startOfDay(new Date()) }).forEach(day => {
+                scansByDay[format(day, 'yyyy-MM-dd')] = 0;
+            });
+            recentScans.forEach(s => {
+                const scanDate = format(s.timestamp.toDate(), 'yyyy-MM-dd');
+                if (scansByDay[scanDate] !== undefined) {
+                    scansByDay[scanDate]++;
+                }
+            });
+            setScansPerDayData(Object.entries(scansByDay).map(([date, count]) => ({ date, scans: count })).sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()));
+
           } catch (scanError: any) {
-            if (scanError.code === 'permission-denied') {
-                 console.warn("Permission denied fetching scans collection. Ensure Firestore rules allow admin access. Defaulting to 0.", scanError);
-                 toast({
-                    variant: "default",
-                    title: "Scan Data Restricted",
-                    description: "Could not load QR scan totals due to permission issues. Check Firestore rules.",
-                 });
-            } else {
-                console.warn("Could not fetch scans collection (it might not exist yet), defaulting to 0. Error:", scanError);
-            }
-            setRealTotalScans(0); 
+            console.warn("Error fetching scans collection (it might not exist or rules deny access):", scanError);
+            toast({
+              variant: "default",
+              title: "Scan Data Unavailable",
+              description: "Could not load QR scan totals or daily scan data. The 'scans' collection might be missing or inaccessible.",
+            });
+            setTotalScans(0);
+            setScansPerDayData(
+              eachDayOfInterval({ start: sevenDaysAgo, end: startOfDay(new Date()) })
+                .map(day => ({ date: format(day, 'yyyy-MM-dd'), scans: 0 }))
+                .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
+            );
           }
 
         } catch (error: any) {
@@ -116,9 +202,10 @@ export default function AdminPage() {
             description: description,
           });
           // Fallback to N/A or 0 if fetching fails
-          setRealTotalRegisteredUsers("N/A");
-          setRealTotalPointsIssued("N/A");
-          setRealTotalScans("N/A");
+          setTotalRegisteredUsers("N/A");
+          setActiveUsers30Days("N/A");
+          setTotalScans("N/A");
+          setTotalPointsIssued("N/A");
         } finally {
           setIsDataLoading(false);
         }
@@ -127,10 +214,20 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router, toast]);
 
-  if (authLoading || !user || !user.isAdmin || !statsData) {
+  if (authLoading || isDataLoading) {
     return (
       <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center">
         <p className="text-lg">Loading Admin Dashboard & Verifying Permissions...</p>
+      </div>
+    );
+  }
+  
+  if (!user || !user.isAdmin) {
+     // This case should ideally be caught by the useEffect redirect,
+     // but as a fallback or if loading states resolve quickly.
+    return (
+      <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center">
+        <p className="text-lg text-destructive">Access Denied. You are not authorized to view this page.</p>
       </div>
     );
   }
@@ -147,10 +244,10 @@ export default function AdminPage() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Total Registered Users" value={realTotalRegisteredUsers} icon={Users} />
-        <MetricCard title="Active Users (30 days)" value={statsData.activeUsersLast30Days} icon={Activity} description="Based on recent activity (mock)" />
-        <MetricCard title="Total QR Scans" value={realTotalScans} icon={ScanLine} description="All-time scans" />
-        <MetricCard title="Total Points Issued" value={realTotalPointsIssued} icon={Gift} />
+        <MetricCard title="Total Registered Users" value={totalRegisteredUsers} icon={Users} />
+        <MetricCard title="Active Users (30 days)" value={activeUsers30Days} icon={Activity} description="Users logged in last 30 days" />
+        <MetricCard title="Total QR Scans" value={totalScans} icon={ScanLine} description="All-time scans" />
+        <MetricCard title="Total Points Issued" value={totalPointsIssued} icon={Gift} />
       </div>
       
       {/* Charts & Graphs Section */}
@@ -158,20 +255,22 @@ export default function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><TrendingUp className="mr-2 h-5 w-5 text-primary" />Scans Per Day</CardTitle>
-            <CardDescription>Mocked scan data trends over the last week.</CardDescription>
+            <CardDescription>Scans over the last 7 days.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
-              <ChartContainer config={chartConfigVisits} className="h-full w-full">
-                <LineChart accessibilityLayer data={statsData.visitsPerDay} margin={{ left: 12, right: 12 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                  <YAxis />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Line dataKey="scans" type="monotone" stroke="var(--color-scans)" strokeWidth={2} dot={true} name="Scans" />
-                </LineChart>
-              </ChartContainer>
+              {scansPerDayData.length > 0 ? (
+                <ChartContainer config={chartConfigVisits} className="h-full w-full">
+                  <LineChart accessibilityLayer data={scansPerDayData} margin={{ left: 12, right: 12 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => format(parseISO(value), 'MMM d')} />
+                    <YAxis />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Line dataKey="scans" type="monotone" stroke="var(--color-scans)" strokeWidth={2} dot={true} name="Scans" />
+                  </LineChart>
+                </ChartContainer>
+              ) : <p className="text-muted-foreground">No scan data available for the last 7 days.</p>}
             </div>
           </CardContent>
         </Card>
@@ -179,19 +278,21 @@ export default function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Reward Redemptions by Milestone</CardTitle>
-            <CardDescription>Number of users who have redeemed rewards at each point milestone (mock).</CardDescription>
+            <CardDescription>Number of users who have reached point milestones.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
+            {rewardRedemptionsData.length > 0 ? (
               <ChartContainer config={chartConfigMilestoneRedemptions} className="h-full w-full">
-                <BarChart accessibilityLayer data={statsData.rewardRedemptionsByMilestone}>
+                <BarChart accessibilityLayer data={rewardRedemptionsData}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="milestone" tickLine={false} tickMargin={10} axisLine={false} />
-                  <YAxis />
+                  <YAxis allowDecimals={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={4} name="Redemptions" />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={4} name="Users Reached" />
                 </BarChart>
               </ChartContainer>
+            ) : <p className="text-muted-foreground">No milestone data available.</p>}
             </div>
           </CardContent>
         </Card>
@@ -199,43 +300,48 @@ export default function AdminPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl flex items-center"><UserPlus className="mr-2 h-5 w-5 text-primary" />Daily Signups</CardTitle>
-            <CardDescription>New user registrations per day for the last week (mock).</CardDescription>
+            <CardDescription>New user registrations per day for the last 7 days.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full">
+            {dailySignupsData.length > 0 ? (
               <ChartContainer config={chartConfigSignups} className="h-full w-full">
-                <AreaChart accessibilityLayer data={statsData.dailySignups} margin={{ left: 12, right: 12 }}>
+                <AreaChart accessibilityLayer data={dailySignupsData} margin={{ left: 12, right: 12 }}>
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}/>
-                  <YAxis />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => format(parseISO(value), 'MMM d')}/>
+                  <YAxis allowDecimals={false} />
                   <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                   <Area dataKey="signups" type="monotone" fill="var(--color-signups)" stroke="var(--color-signups)" stackId="a" name="Signups" />
                 </AreaChart>
               </ChartContainer>
+             ) : <p className="text-muted-foreground">No signup data available for the last 7 days.</p>}
             </div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Points Analytics (Mock)</CardTitle>
-             <CardDescription>Current distribution of points among users (mock).</CardDescription>
+            <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-primary" />Points Distribution</CardTitle>
+             <CardDescription>Current distribution of points among users.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Mocked sub-metrics for now */}
             <div className="grid gap-4 md:grid-cols-2">
-              <MetricCard title="Avg. Points/Patron" value={statsData.averagePointsPerPatron} />
-              <MetricCard title="Total Points Redeemed" value={statsData.totalPointsRedeemed} />
+              <MetricCard title="Avg. Points/Patron" value={totalRegisteredUsers > 0 ? (Number(totalPointsIssued)/Number(totalRegisteredUsers)).toFixed(1) : 0} />
+              <MetricCard title="Total Points Redeemed" value={"N/A (mock)"} />
             </div>
             <div className="h-[200px] w-full">
-               <ChartContainer config={chartConfigPoints} className="h-full w-full">
-                  <BarChart accessibilityLayer data={statsData.pointsDistribution}>
+            {pointsDistributionData.length > 0 ? (
+               <ChartContainer config={chartConfigPointsDistribution} className="h-full w-full">
+                  <BarChart accessibilityLayer data={pointsDistributionData}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                    <YAxis />
+                    <YAxis allowDecimals={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="users" fill="var(--color-users)" radius={4} name="Users in Range"/>
                   </BarChart>
                 </ChartContainer>
+                 ) : <p className="text-muted-foreground">No points distribution data available.</p>}
             </div>
           </CardContent>
         </Card>
@@ -245,7 +351,7 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center"><Users className="mr-2 h-5 w-5 text-primary" />User Management</CardTitle>
-          <CardDescription>List of all registered users. (Search, sort, and claimed rewards are placeholders from mock data)</CardDescription>
+          <CardDescription>List of all registered users. (Search and sort are placeholders)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -255,21 +361,23 @@ export default function AdminPage() {
                 <TableHead>Email</TableHead>
                 <TableHead className="text-right">Current Points</TableHead>
                 <TableHead className="text-right">Total Visits</TableHead>
-                <TableHead>Last Scan Date</TableHead>
+                <TableHead>Last Activity</TableHead>
                 <TableHead className="text-right">Claimed Rewards</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usersData.map((u) => (
+              {userTableData.length > 0 ? userTableData.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell className="text-right">{u.totalPoints}</TableCell>
                   <TableCell className="text-right">{u.visitsCount}</TableCell>
-                  <TableCell>{new Date(u.lastVisitDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{u.lastVisitDate}</TableCell> {/* Using lastLogin as proxy */}
                   <TableCell className="text-right">{u.claimedRewardsCount}</TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                <TableRow><TableCell colSpan={6} className="text-center">No users found.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -282,7 +390,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl flex items-center"><ListChecks className="mr-2 h-5 w-5 text-primary" />Reward Tracking</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">Detailed statistics per reward, time to redemption, and missed opportunities will be displayed here.</p>
+            <p className="text-muted-foreground">Detailed statistics per reward, time to redemption, and missed opportunities will be displayed here. (Placeholder)</p>
              <Button variant="outline" className="mt-4 w-full" disabled>View Reward Stats (Soon)</Button>
           </CardContent>
         </Card>
@@ -292,7 +400,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" />Activity Feed / Logs</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">A real-time feed of recent QR scans, reward claims, and user milestone achievements will appear here.</p>
+            <p className="text-muted-foreground">A real-time feed of recent QR scans, reward claims, and user milestone achievements will appear here. (Placeholder)</p>
             <Button variant="outline" className="mt-4 w-full" disabled>View Activity (Soon)</Button>
           </CardContent>
         </Card>
@@ -302,7 +410,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl flex items-center"><Download className="mr-2 h-5 w-5 text-primary" />Admin Tools</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-muted-foreground">Tools for data export and user management.</p>
+            <p className="text-muted-foreground">Tools for data export and user management. (Placeholder)</p>
             <Button variant="outline" className="w-full" disabled><Download className="mr-2 h-4 w-4" />Export User Data (CSV)</Button>
             <Button variant="outline" className="w-full" disabled>Manually Adjust Points</Button>
             <Button variant="outline" className="w-full" disabled>Push Promotions</Button>
