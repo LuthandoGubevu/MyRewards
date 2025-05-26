@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricCard } from '@/components/admin/MetricCard';
 import type { MockUser } from '@/lib/mockAdminData'; // Keep type for table structure
-import { Users, Activity, Gift, BarChart3, TrendingUp, Download, Settings, ScanLine, UserPlus, ListChecks, Clock, Award, Trophy } from 'lucide-react'; // Added Award and Trophy
+import { Users, Activity, Gift, BarChart3, TrendingUp, Download, Settings, ScanLine, UserPlus, ListChecks, Clock, Award, Trophy, Phone } from 'lucide-react'; // Added Award, Trophy, Phone
 import {
   ChartContainer,
   ChartTooltip,
@@ -48,8 +48,9 @@ const chartConfigPointsDistribution = {
   users: { label: "Users", color: "hsl(var(--chart-1))" },
 } satisfies Record<string, any>;
 
-interface UserDataForTable extends MockUser { // Re-use MockUser for structure, but data will be real
-  lastLoginDate?: string; // For display
+interface UserDataForTable extends MockUser { 
+  lastLoginDate?: string; 
+  phoneNumber?: string; // Added phoneNumber
 }
 
 export default function AdminPage() {
@@ -113,8 +114,8 @@ export default function AdminPage() {
             id: u.id,
             name: u.name || 'N/A',
             email: u.email,
+            phoneNumber: u.phoneNumber || 'N/A', // Added phoneNumber
             totalPoints: u.points || 0,
-            // Use lastLogin as a proxy for lastVisitDate for the table
             lastVisitDate: u.lastLogin ? format((u.lastLogin as Timestamp).toDate(), 'yyyy-MM-dd') : 'N/A',
             visitsCount: u.visitsCount || 0,
             claimedRewardsCount: u.claimedRewardsCount || 0,
@@ -223,8 +224,6 @@ export default function AdminPage() {
   }
   
   if (!user || !user.isAdmin) {
-     // This case should ideally be caught by the useEffect redirect,
-     // but as a fallback or if loading states resolve quickly.
     return (
       <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center">
         <p className="text-lg text-destructive">Access Denied. You are not authorized to view this page.</p>
@@ -325,7 +324,6 @@ export default function AdminPage() {
              <CardDescription>Current distribution of points among users.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Mocked sub-metrics for now */}
             <div className="grid gap-4 md:grid-cols-2">
               <MetricCard title="Avg. Points/Patron" value={totalRegisteredUsers > 0 && typeof totalRegisteredUsers === 'number' && typeof totalPointsIssued === 'number' ? (totalPointsIssued / totalRegisteredUsers).toFixed(1) : "0"} />
               <MetricCard title="Total Points Redeemed" value={"N/A (mock)"} />
@@ -359,6 +357,7 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Phone Number</TableHead> 
                 <TableHead className="text-right">Current Points</TableHead>
                 <TableHead className="text-right">Total Visits</TableHead>
                 <TableHead>Last Activity</TableHead>
@@ -370,13 +369,14 @@ export default function AdminPage() {
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
+                  <TableCell>{u.phoneNumber || 'N/A'}</TableCell>
                   <TableCell className="text-right">{u.totalPoints}</TableCell>
                   <TableCell className="text-right">{u.visitsCount}</TableCell>
-                  <TableCell>{u.lastVisitDate}</TableCell> {/* Using lastLogin as proxy */}
+                  <TableCell>{u.lastVisitDate}</TableCell> 
                   <TableCell className="text-right">{u.claimedRewardsCount}</TableCell>
                 </TableRow>
               )) : (
-                <TableRow><TableCell colSpan={6} className="text-center">No users found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center">No users found.</TableCell></TableRow> 
               )}
             </TableBody>
           </Table>
