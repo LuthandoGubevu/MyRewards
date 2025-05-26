@@ -1,45 +1,106 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Firebase
+serviceAccountKey.json
+scripts/serviceAccountKey.json
+firebase-debug.log
+firebase-crashlytics-build.json
+
+# Dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
+.yarn/install-state.gz
 
-# testing
-/coverage
-
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
-/build
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# misc
-.DS_Store
-*.pem
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# vercel
-.vercel
-
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-.genkit/*
-.env*
+# Misc
+.DS_Store
+*.pem
 
-# firebase
-firebase-debug.log
-firestore-debug.log
+# Local Environment Variables
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Debug files
+*.pid
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.tmp
+*.swp
+
+# Coverage directory
+/coverage
+/.nyc_output
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Optional eslint cache
+.eslintcache
+
+# Optional Prettier cache
+.prettiercache
+
+# Optional Parcel cache
+.cache
+
+# dotenv environment variables file
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Gatsby files
+.cache/
+public
+
+# Next.js build output
+.next
+
+# output folder
+/dist
+/build
+
+# IDX specific
+.idx
+firebase-admin-tools/serviceAccountKey.json
