@@ -6,41 +6,39 @@ service cloud.firestore {
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Any authenticated user can create their own user document (e.g., on signup)
-      allow create: if request.auth != null && request.auth.uid == userId;
-
       // Authenticated users can read their own document.
-      // Admins (with custom claim admin == true) can read any user document.
-      allow read: if request.auth != null && 
+      // Users with an 'admin: true' custom claim can read any user document.
+      allow read: if request.auth != null &&
                     (request.auth.uid == userId || request.auth.token.admin == true);
 
-      // Authenticated users can update their own document.
-      // Admins can update any user document (be cautious with client-side admin updates).
-      allow update: if request.auth != null &&
-                      (request.auth.uid == userId || request.auth.token.admin == true);
-      
-      // Only admins should be able to delete user documents (generally not recommended)
-      // allow delete: if request.auth != null && request.auth.token.admin == true;
-      allow delete: if false; // Typically, users should not be able to delete their accounts directly via client.
+      // Authenticated users can create or update their own document.
+      // Note: If admins need to modify other users' documents from the client,
+      // this rule would need to be expanded (e.g., add request.auth.token.admin == true).
+      // However, it's generally more secure to handle such admin modifications
+      // via trusted backend functions.
+      allow write: if request.auth != null && request.auth.uid == userId;
 
-      // Example: if you add a 'role' field that users shouldn't change themselves:
-      // allow update: if request.auth.uid == userId && !(request.resource.data.role != resource.data.role);
-      // This means they can update other fields, but not 'role'. Admins could update 'role'.
+      // Deletion of user documents should typically be handled by backend processes
+      // or with very strict rules.
+      // allow delete: if false; // Example: disallow client-side deletion
     }
 
-    // Rules for an 'adminData' collection, accessible only by admins
+    // Example rules for an 'adminData' collection, accessible only by admins
     match /adminData/{docId} {
-      allow read, write, create, delete: if request.auth != null && request.auth.token.admin == true;
+      allow read, write, delete: if request.auth != null && request.auth.token.admin == true;
     }
 
-    // Add rules for other collections like 'scans' or 'rewards' as needed.
-    // Example for 'scans' collection:
+    // Placeholder for 'scans' collection rules
     // match /scans/{scanId} {
-    //   allow create: if request.auth != null; // Any authenticated user can create a scan
-    //   allow read: if request.auth != null && request.auth.token.admin == true; // Only admins can read all scans
-    //   // allow read: if request.auth != null && request.resource.data.userId == request.auth.uid; // Or users can read their own scans
+      // Example: Admins can manage all scans
+      // allow read, write, delete: if request.auth != null && request.auth.token.admin == true;
+      // Example: Users can create their own scans
+      // allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Example: Users can read their own scans (if you store userId on the scan document)
+      // allow read: if request.auth != null && resource.data.userId == request.auth.uid;
     // }
+
+    // Add rules for other collections (e.g., rewards, settings) as your application grows.
+    // Always consider who should have read, write, create, update, and delete permissions.
   }
 }
-
-    
