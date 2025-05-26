@@ -2,8 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Award, LogIn, QrCode, ScanLine, UserPlus, Zap } from "lucide-react";
+import { Award, LogIn, ScanLine, UserPlus, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,22 +14,35 @@ export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) {
-      if (user.isAdmin) {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
-    }
+    // If a user is already logged in and lands on '/', AppContent will keep them here.
+    // If they land on '/login' or '/signup' while logged in, AppContent redirects them.
+    // This useEffect could be simplified or removed if AppContent fully handles all cases.
   }, [user, loading, router]);
 
-  if (loading || (!loading && user)) {
+
+  // If auth is loading and user is not yet determined, show a generic loading state.
+  // AppContent handles more specific loading/redirecting states for protected routes.
+  if (loading) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
-        Loading or Redirecting...
+        Loading Application...
       </div>
     );
   }
+
+  // If user is determined and logged in, AppContent will handle appropriate dashboard redirection
+  // from /login or /signup. User stays on '/' if they navigate here while logged in.
+  // This specific check might be redundant if AppContent's logic is comprehensive.
+  if (!loading && user && (router.pathname === '/login' || router.pathname === '/signup')) {
+     // console.log("LandingPage: User is logged in, on login/signup, AppContent should redirect.");
+     // This state is primarily handled by AppContent, can show a generic redirecting message
+     return (
+      <div className="flex-grow flex flex-col items-center justify-center text-white h-screen w-full">
+        Redirecting...
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-[calc(100vh-7rem)] flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-black to-gray-900 text-white">
@@ -76,23 +88,14 @@ export default function LandingPage() {
             className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg font-semibold py-3 px-8 rounded-lg shadow-lg hover:shadow-primary/70 transition-all duration-300 transform hover:scale-105"
           >
             <Link href="/login">
-              <LogIn className="mr-2 h-5 w-5" />
-              Start Earning Now
+              <span className="flex items-center">
+                <LogIn className="mr-2 h-5 w-5" />
+                Start Earning Now
+              </span>
             </Link>
           </Button>
         </div>
 
-        <div className="mt-12">
-          <Image 
-            src="https://placehold.co/600x300.png" 
-            alt="KFC Rewards examples" 
-            width={600} 
-            height={300}
-            data-ai-hint="KFC food rewards"
-            className="rounded-xl shadow-2xl mx-auto"
-          />
-           <p className="text-sm text-gray-500 mt-2">Unlock free chicken, exclusive merch, and more!</p>
-        </div>
       </div>
     </div>
   );
